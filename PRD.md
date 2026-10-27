@@ -125,7 +125,7 @@ Source: SurgeDM/Surge `main` at commit `9de4cfa` (2026-10-27), Go, MIT. All find
 | **reth download** | Prior art for streaming into an extractor, chain-specific [R-Reth] |
 | **croc / magic-wormhole / sendme** | P2P baselines [R-croc][R-Wormhole][R-sendme] |
 
-**Licensing:** aria2 and axel are GPL-2.0. We may study their behaviour but must not copy code into qget (MIT/Apache-2.0). Surge is MIT, so its ideas can be used with attribution, but we reimplement rather than copy.
+**Licensing:** aria2 and axel are GPL-2.0. We may study their behaviour but must not copy code into qget (Apache-2.0). Surge is MIT, so its ideas can be used with attribution, but we reimplement rather than copy.
 
 ---
 
@@ -637,7 +637,7 @@ A release ships only if all of the following hold: all PERF targets met in the l
 
 | Milestone | Scope | Exit criteria |
 |---|---|---|
-| **M0: Foundations** | Repo, CI, licences (MIT/Apache-2.0), benchmark harness running against the Go prototype + competitors, name reservation | Baseline numbers published internally |
+| **M0: Foundations** | Repo, CI, licence (Apache-2.0), benchmark harness running against the Go prototype + competitors, name reservation | Baseline numbers published internally |
 | **M1: Correct HTTP core** | HTTP-01..10, 15, 17; DUR-*; INT-01, 07; CLI-01..03, 06, 08; sans-I/O controller; DST harness | Fault-injection + crash suites green; ≥ parity with tuned aria2c in all lab cells |
 | **M2: Fast HTTP** | Concurrency controller, rate-scaled blocks, hedging, end-game, HDD mode | PERF-01..06 met; ≥1.3× Surge/aria2c in throttled/high-RTT/straggler cells |
 | **M3: Stream-extract (launch feature)** | EXT-01..06, 08, 09 for tar/lz4/zstd; survey of real snapshots' frame structure | ≥1.8× vs `aria2c && tar` on a real snapshot; **public v0.1 + AUR** |
