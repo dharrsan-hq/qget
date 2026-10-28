@@ -4,7 +4,7 @@
 |---|---|
 | **Product** | qget |
 | **Owner** | Dharrsan |
-| **Version** | 0.1 (draft) |
+| **Version** | 0.2 (draft) |
 | **Date** | 2026-10-28 |
 | **Status** | Draft for review |
 | **Supersedes** | Sections 3, 4, 6–8 of `PROPOSAL.md` |
@@ -42,6 +42,8 @@ qget is a command-line data-transfer engine written in Rust. It does three thing
 1. **Fast, correct HTTP(S) downloads.** It adaptively uses many range connections, avoids stragglers, and resumes safely after crashes. It refuses to produce a corrupted file without telling you.
 2. **Stream-extract.** It downloads a huge `.tar.lz4` / `.tar.zst` / `.tar.gz` archive in parallel and extracts it *while downloading*. The archive is never stored. This targets blockchain node snapshots and large datasets.
 3. **Verified peer-to-peer transfer.** `qget yeet <file>` / `qget yoink <code>` sends a file directly between machines over QUIC with NAT traversal, and falls back to a relay when needed. The same engine can pull one file from HTTP mirrors and peers at once, with every byte verified against a BLAKE3 root hash.
+
+All of this is built as a set of Rust library crates; the `qget` CLI is one thin consumer of the public `qget` library, which other projects (node clients, snapshot tools, CI systems) can embed directly (§9.2).
 
 The order of priorities is **correctness, then determinism, then performance, then features**. "Fastest" only matters if the output is always byte-exact or the tool fails with an explicit error.
 
@@ -142,6 +144,7 @@ Source: SurgeDM/Surge `main` at commit `9de4cfa` (2026-10-27), Go, MIT. All find
 | G5 | **Stream-extract** of tar archives (lz4, zstd, gzip, xz, none) with bounded memory, finishing within a small margin of the download itself |
 | G6 | **Verified P2P transfer and hybrid HTTP+peer downloads** over QUIC with NAT traversal and relay fallback |
 | G7 | **Distro-grade engineering**: stable CLI, man page, completions, reproducible builds, signed releases, security policy, no telemetry |
+| G8 | **Embeddable library.** The download engine is a Rust library first; the CLI is built only on its public API. Embedding is how a transfer tool spreads beyond people typing commands, as libcurl shows |
 
 ### 4.2 Non-goals (v1)
 
@@ -150,6 +153,8 @@ Source: SurgeDM/Surge `main` at commit `9de4cfa` (2026-10-27), Go, MIT. All find
 - Windows as a tier-1 platform for v1. Linux is tier 1, macOS tier 2, Windows best-effort
 - Inventing new congestion control or new P2P transport protocols
 - Bypassing server rate limits or terms of service. Polite defaults are a requirement (§8.4)
+- A C ABI / `libqget.so` for non-Rust embedders. Listed as a post-1.0 direction (§9.2), not a commitment
+- Support for async runtimes other than tokio in the public API (`qget-core` stays runtime-free, so this remains possible later)
 
 ### 4.3 Success metrics
 
@@ -163,6 +168,7 @@ Source: SurgeDM/Surge `main` at commit `9de4cfa` (2026-10-27), Go, MIT. All find
 | CPU per Gbit/s (plain HTTPS download, Linux x86-64) | ≤0.15 core per Gbit/s, compared against aria2c in the same run |
 | P2P direct-connection rate (field telemetry is opt-in only; otherwise lab matrix) | Matches iroh's published characteristics; relay fallback 100% |
 | Adoption | AUR at v0.1; Homebrew + Nixpkgs by v0.3; ≥1 official distro repo by 1.0 |
+| Library adoption | ≥1 external project embedding the `qget` crate by 1.0 |
 
 ---
 
@@ -283,7 +289,23 @@ Priority: **P0** = required for v0.1, **P1** = required for 1.0, **P2** = after 
 | CLI-06 | Man page and bash/zsh/fish completions generated from the CLI definition | P0 |
 | CLI-07 | Config file (`$XDG_CONFIG_HOME/qget/config.toml`) with the same keys as the flags | P1 |
 | CLI-08 | Honest User-Agent `qget/<version>` (overridable) | P0 |
-| CLI-09 | `libqget` crate with a stable public API for embedding (e.g. by node clients) | P2 |
+| CLI-09 | *(moved to §7.7, LIB-\*)* | — |
+
+### 7.7 Library and crate structure
+
+| ID | Requirement | Pri |
+|---|---|---|
+| LIB-01 | Cargo workspace with the crate layout and dependency rules in §9.2 from the first commit | P0 |
+| LIB-02 | `qget-core` has no I/O, no async runtime, and no network/TLS/filesystem dependencies. Enforced in CI (dependency allow-list check) | P0 |
+| LIB-03 | The CLI uses **only** the public `qget` API; it may not import internal crates. This proves the public API is sufficient | P0 |
+| LIB-04 | Library crates never print to stdout/stderr, never call `process::exit`, and hold no global mutable state. Diagnostics go through `tracing` | P0 |
+| LIB-05 | Cancellation via a cancellation token and by dropping the download future; both leave the journal consistent and the download resumable | P0 |
+| LIB-06 | Progress is exposed as a typed event stream (the same events behind `--progress=json`) | P1 |
+| LIB-07 | Public error types are typed enums marked `#[non_exhaustive]`, mapping 1:1 to the CLI exit codes (CLI-03) | P0 |
+| LIB-08 | Cargo features: `default = ["http", "extract"]`; `p2p` and `http3` are opt-in. **The default build must not depend on iroh** (§9.2, distro packaging) | P0 |
+| LIB-09 | Published MSRV policy (e.g. latest stable − 2); `cargo-semver-checks` in CI from the first published library version | P1 |
+| LIB-10 | docs.rs documentation with runnable examples for every public entry point | P1 |
+| LIB-11 | Publishing: v0.1–v0.4 ship the CLI only (library crates `publish = false` or clearly marked unstable); ~v0.5 publishes `qget` as an experimental library; 1.0 stabilises the library API together with the CLI | P1 |
 
 ---
 
@@ -365,6 +387,8 @@ Networks are not deterministic. qget guarantees a **deterministic outcome** (a b
 
 ## 9. Architecture
 
+### 9.1 Runtime data flow
+
 ```
                          ┌────────────────────────────────────────────┐
      qget CLI  ───────►  │                 Controller                 │
@@ -411,6 +435,91 @@ Networks are not deterministic. qget guarantees a **deterministic outcome** (a b
 | AD-4 | **TCP for HTTP bulk by default, QUIC for P2P** | On fast links TCP+HTTP/2 beats QUIC+HTTP/3 by up to 45% because of receiver-side cost [R-QUIC-WWW24]. For P2P, QUIC is needed for NAT traversal and path migration [R-Tailscale-NAT][R-iroh-1.0] |
 | AD-5 | **Multi-source aggregation at the application layer**, not via multipath QUIC | The multipath QUIC draft does not specify scheduling across paths [R-MPQUIC]; we need deterministic control |
 | AD-6 | **No fountain codes by default** | Over reliable QUIC they add CPU cost and complicate verification and determinism [R-raptorq]; kept as a research option for one-to-many multicast |
+| AD-7 | **Library first, CLI as a thin consumer** | Embedding drives adoption (G8); forces a clean public API; the CLI proves that API is sufficient (LIB-03) |
+| AD-8 | **P2P is an opt-in Cargo feature** | Debian/Fedora package every Rust dependency separately; iroh's large dependency tree would block distro inclusion of the default build for years |
+| AD-9 | **Public API tied to tokio; core runtime-free** | Supporting several runtimes in the public API is costly for little benefit; a runtime-free core keeps the option open |
+
+### 9.2 Crate layout
+
+The modules are **separate crates in one repository and one Cargo workspace, compiled into a single binary**. Nothing runs as a separate process or service. Crate boundaries are compile-time boundaries: the compiler rejects any dependency that isn't declared, which is how the rules below are enforced.
+
+```
+qget/                         (one git repo, one Cargo workspace)
+├── crates/
+│   ├── qget-core/      pure logic, NO I/O, NO tokio: scheduler, concurrency
+│   │                   controller, hedging, state machines, journal record
+│   │                   format, error types, Source/Sink trait definitions
+│   ├── qget-runtime/   tokio event loop that executes core's commands:
+│   │                   timers, file sink (pwrite, fallocate, fsync), journal writer
+│   ├── qget-http/      HTTP source: hyper + rustls, range requests
+│   ├── qget-extract/   stream sink: reorder window → lz4/zstd/gzip/xz → tar writer
+│   ├── qget-p2p/       P2P source + send side: iroh, BLAKE3/bao, SPAKE2 (feature `p2p`)
+│   ├── qget/           public library facade: small stable API, wires the pieces
+│   │                   together; the only crate external users depend on
+│   └── qget-cli/       the `qget` binary: argument parsing, progress rendering,
+│                       exit codes; no download logic
+├── sim/                deterministic simulation tests (turmoil)
+└── bench/              benchmark harness (§14.1)
+```
+
+**Dependency direction** (arrows mean "depends on"):
+
+```
+                      qget-cli
+                         │
+                         ▼
+                       qget             ← public API (facade)
+          ┌──────────┬───┴──────┬───────────┐
+          ▼          ▼          ▼           ▼
+     qget-http  qget-extract  qget-p2p  qget-runtime
+          └──────────┴────┬─────┴───────────┘
+                          ▼
+                      qget-core         ← no I/O dependencies
+```
+
+**Rules**
+
+1. `qget-core` never depends on anything that performs I/O (LIB-02). This is what makes the scheduler a pure function (DET-01) and lets every source plug in through the same `Source` trait (AD-2).
+2. Source and sink crates depend on `qget-core`, never on each other.
+3. Only the `qget` facade knows about all crates; only `qget-cli` knows about terminals and exit codes.
+
+**One download, end to end**
+
+1. `qget-cli` parses `qget URL --extract /data --checksum sha256:…`.
+2. `qget` builds a `Download`: HTTP source(s), extract sink, configuration.
+3. `qget-runtime` starts the event loop and asks core for its next commands.
+4. `qget-core` returns commands such as `FetchRange{src: 0, 0..8 MiB}`, `FetchRange{src: 1, 8..16 MiB}`.
+5. `qget-runtime` executes them through `qget-http`; bytes arrive.
+6. `qget-runtime` validates (Content-Range, byte count), hands bytes to the sink, and once they are durable sends core `Event::RangeDone{…}`.
+7. `qget-core` updates state and measurements and may decide to add a connection or hedge a range, producing new commands.
+8. This repeats until core returns `Finished`; the sink verifies the hash and performs the atomic rename.
+
+Core only ever receives events and returns commands. Recording the events makes a run replayable (`--trace`, DET-05); feeding synthetic events is how simulation testing works (§14.3).
+
+**Library usage (illustrative; the real API is designed at M4–M5):**
+
+```rust
+let report = qget::Download::new("https://snapshots.example.com/celestia.tar.lz4")
+    .extract_to("/data/celestia")
+    .checksum("sha256:9f2c…")
+    .max_buffer(1 << 30)
+    .on_progress(|p| metrics.record(p.bytes_per_sec))
+    .run()
+    .await?;
+```
+
+**Cargo features**
+
+```toml
+[features]
+default = ["http", "extract"]
+p2p     = ["dep:qget-p2p"]   # pulls in iroh; opt-in (AD-8)
+http3   = [...]               # opt-in (HTTP-14)
+```
+
+Distros can therefore ship a lean `qget` (HTTP + extract) first, with P2P following as a feature build or separate package.
+
+**Future direction (post-1.0, not committed):** a C ABI (`libqget.so` via cbindgen) so Go, Python and C programs can embed qget, completing the libcurl model.
 
 ---
 
@@ -590,6 +699,7 @@ Reliability and determinism come first, then throughput, then ease of use. Every
 | Simulation testing | turmoil (tokio-compatible, seeded faults) [R-turmoil]; property tests with proptest | madsim (needs patched crates) |
 | Fuzzing | cargo-fuzz (libFuzzer) | — |
 | Supply chain | cargo-deny, cargo-audit, cargo-vet; reproducible builds; minisign/sigstore | — |
+| Workspace and API hygiene | Cargo workspace with feature flags; `cargo-semver-checks`; dependency allow-list check for `qget-core`; `tracing` for diagnostics | — |
 
 ---
 
@@ -637,14 +747,14 @@ A release ships only if all of the following hold: all PERF targets met in the l
 
 | Milestone | Scope | Exit criteria |
 |---|---|---|
-| **M0: Foundations** | Repo, CI, licence (Apache-2.0), benchmark harness running against the Go prototype + competitors, name reservation | Baseline numbers published internally |
-| **M1: Correct HTTP core** | HTTP-01..10, 15, 17; DUR-*; INT-01, 07; CLI-01..03, 06, 08; sans-I/O controller; DST harness | Fault-injection + crash suites green; ≥ parity with tuned aria2c in all lab cells |
+| **M0: Foundations** | Repo, CI, licence (Apache-2.0), Cargo workspace with the §9.2 crate layout (LIB-01, 02), benchmark harness running against the Go prototype + competitors, name reservation | Baseline numbers published internally; workspace dependency rules enforced in CI |
+| **M1: Correct HTTP core** | HTTP-01..10, 15, 17; DUR-*; INT-01, 07; CLI-01..03, 06, 08; LIB-03..05, 07, 08; sans-I/O controller; DST harness | Fault-injection + crash suites green; ≥ parity with tuned aria2c in all lab cells |
 | **M2: Fast HTTP** | Concurrency controller, rate-scaled blocks, hedging, end-game, HDD mode | PERF-01..06 met; ≥1.3× Surge/aria2c in throttled/high-RTT/straggler cells |
 | **M3: Stream-extract (launch feature)** | EXT-01..06, 08, 09 for tar/lz4/zstd; survey of real snapshots' frame structure | ≥1.8× vs `aria2c && tar` on a real snapshot; **public v0.1 + AUR** |
-| **M4: Hardening** | HTTP-11..13, 16, 18; INT-02..04, 06; EXT-07; gzip/xz; `--explain`, `--trace` replay; man page | v0.3; Homebrew + Nixpkgs; distro packaging requests filed |
-| **M5: P2P** | P2P-01..06, 09; relay deployment | Lab NAT matrix (full-cone, restricted, symmetric, CGNAT) passes; relay fallback 100%; v0.5 |
-| **M6: Hybrid & swarm** | P2P-07, 08; libqget API | v0.8 |
-| **M7: 1.0** | CLI and API stability freeze, security review, reproducible builds | 1.0; ≥1 official distro repo |
+| **M4: Hardening** | HTTP-11..13, 16, 18; INT-02..04, 06; EXT-07; gzip/xz; `--explain`, `--trace` replay; man page; LIB-06, 09, 10; public library API design | v0.3; Homebrew + Nixpkgs; distro packaging requests filed |
+| **M5: P2P** | P2P-01..06, 09 (behind the `p2p` feature); relay deployment; LIB-11 experimental library release | Lab NAT matrix (full-cone, restricted, symmetric, CGNAT) passes; relay fallback 100%; v0.5 with `qget` published as an experimental library |
+| **M6: Hybrid & swarm** | P2P-07, 08; library feedback from at least one embedding project | v0.8 |
+| **M7: 1.0** | CLI and library API stability freeze, security review, reproducible builds | 1.0; ≥1 official distro repo; ≥1 external project embedding the library |
 
 Milestones are ordered by risk and value, not by calendar. Rough sizing for one developer learning Rust alongside (per the agreed learning plan): M0–M3 ≈ 4–6 months; M4–M5 ≈ 4–6 months.
 
@@ -664,6 +774,8 @@ Milestones are ordered by risk and value, not by calendar. Rough sizing for one 
 | Aggressive parallelism hurts other users / triggers blocks | Reputation, distro rejection | Polite defaults, NET-* requirements, `--polite` |
 | Solo developer learning Rust | Schedule | Sans-I/O core is testable in isolation; Claude used as reviewer/tutor; strict "explain every line" rule |
 | Employer overlap (node-operator audience) | Legal/branding | Clarify ownership before public release (open question Q1) |
+| Library API churn breaks early embedders | Lost trust, abandoned integrations | No published library until ~v0.5; `#[non_exhaustive]` errors; `cargo-semver-checks`; CLI built on the public API so gaps surface early |
+| Large dependency trees block distro packaging (Debian/Fedora package each crate) | Delayed distro inclusion | P2P and HTTP/3 behind opt-in features; minimal default dependency set; track `cargo tree` size per release |
 
 ### 16.2 Open questions
 
@@ -677,6 +789,8 @@ Milestones are ordered by risk and value, not by calendar. Rough sizing for one 
 | Q6 | Audited Rust CPace implementation available? | Eng | M5 |
 | Q7 | SHA-256 throughput on target servers (to confirm the hash-bound threshold) | Eng | M3 |
 | Q8 | Relay hosting budget and regions | Dharrsan | M5 |
+| Q9 | Which project is the first embedding partner for the library (e.g. a node client or snapshot tool)? | Dharrsan | M5 |
+| Q10 | Should the crate name `qget` be reserved on crates.io now with a 0.0.0 placeholder? (Public and permanent) | Dharrsan | M0 |
 
 ---
 
