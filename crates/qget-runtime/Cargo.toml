@@ -1,5 +1,6 @@
 [package]
 name = "qget-runtime"
+description = "tokio I/O shell for qget: executes engine commands, crash-safe file sink and journal"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,3 +10,14 @@ authors.workspace = true
 publish = false
 
 [dependencies]
+qget-core = { workspace = true }
+bytes = { workspace = true }
+rustix = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

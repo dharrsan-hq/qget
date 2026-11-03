@@ -15,12 +15,14 @@ pub mod range;
 pub mod rng;
 pub mod sim;
 pub mod sink;
+pub mod source;
 
 pub use engine::{Command, Engine, EngineConfig, Event, FailKind, ReqId, SourceId};
 pub use error::{Error, Result};
 pub use hash::{ExpectedHash, HashAlgo, Hasher};
 pub use range::{ByteRange, IntervalSet};
 pub use sink::{ConsumerReport, OrderedConsumer, Sink, SinkReport};
+pub use source::{BoxFuture, ChunkStream, Source};
 
 /// Remote validators used to detect that a resource changed between requests
 /// or between runs (DUR-05, HTTP-03).

@@ -5,7 +5,7 @@
 //! so any failing seed can be replayed exactly.
 
 use crate::engine::{Command, Engine, EngineConfig, Event, FailKind, FatalKind, ReqId, Stats};
-use crate::range::{ByteRange, IntervalSet};
+use crate::range::IntervalSet;
 use crate::rng::Rng;
 use std::collections::BTreeMap;
 
@@ -70,7 +70,6 @@ pub struct SimOutcome {
 
 struct SimReq {
     source: usize,
-    range: ByteRange,
     end: u64,
     pos: u64,
     starts_at: u64,
@@ -131,7 +130,6 @@ pub fn run_with_crash(
                         req,
                         SimReq {
                             source: source as usize,
-                            range,
                             end: range.end,
                             pos: range.start,
                             starts_at: now + s.latency_ms,

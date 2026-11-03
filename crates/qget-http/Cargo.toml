@@ -1,5 +1,6 @@
 [package]
 name = "qget-http"
+description = "HTTP(S) range source for qget (reqwest + rustls)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,4 +9,18 @@ repository.workspace = true
 authors.workspace = true
 publish = false
 
+[features]
+# Experimental; also requires RUSTFLAGS="--cfg reqwest_unstable".
+http3 = ["reqwest/http3"]
+
 [dependencies]
+qget-core = { workspace = true }
+base64 = { workspace = true }
+bytes = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+qget-testserver = { workspace = true }
+tokio = { workspace = true }
