@@ -1,5 +1,6 @@
 [package]
 name = "qget-cli"
+description = "qget command-line tool"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,4 +13,30 @@ publish = false
 name = "qget"
 path = "src/main.rs"
 
+[features]
+default = ["extract"]
+extract = ["qget/extract"]
+p2p = ["qget/p2p"]
+http3 = ["qget/http3"]
+
 [dependencies]
+# LIB-03: the CLI uses only the public `qget` API.
+qget = { workspace = true, features = ["http"] }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }
+indicatif = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+qget-testserver = { workspace = true }
+tar = { workspace = true }
+zstd = { workspace = true }
+tempfile = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }

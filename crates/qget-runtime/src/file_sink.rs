@@ -40,7 +40,7 @@ impl FileSinkConfig {
             header,
             hash_algo: None,
             commit_bytes: 256 << 20,
-            commit_interval: Duration::from_secs(2),
+            commit_interval: Duration::from_secs(1),
             tap: None,
             restart: false,
         }
