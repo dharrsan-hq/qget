@@ -1,5 +1,6 @@
 [package]
 name = "qget-extract"
+description = "Streaming archive extraction for qget: parallel LZ4/zstd decode and a hardened tar writer"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,3 +10,18 @@ authors.workspace = true
 publish = false
 
 [dependencies]
+qget-core = { workspace = true }
+crossbeam-channel = { workspace = true }
+filetime = { workspace = true }
+flate2 = { workspace = true }
+liblzma = { workspace = true }
+lz4_flex = { workspace = true }
+rustix = { workspace = true }
+tar = { workspace = true }
+tracing = { workspace = true }
+xxhash-rust = { workspace = true }
+zstd = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tempfile = { workspace = true }
