@@ -1,5 +1,6 @@
 name: Release
 
+# Push a tag like v0.1.0 to build binaries and attach them to a GitHub release.
 on:
   push:
     tags: ["v*"]
@@ -9,50 +10,50 @@ permissions:
   id-token: write
   attestations: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
+    name: ${{ matrix.name }}
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-musl
+          - name: linux-x86_64
             os: ubuntu-latest
             features: ""
-            suffix: ""
-          - target: x86_64-unknown-linux-musl
+          - name: linux-x86_64-p2p
             os: ubuntu-latest
             features: "--features p2p"
-            suffix: "-p2p"
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
+          - name: linux-aarch64
+            os: ubuntu-24.04-arm
             features: ""
-            suffix: ""
-          - target: aarch64-apple-darwin
+          - name: macos-aarch64
             os: macos-latest
             features: ""
-            suffix: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - uses: taiki-e/install-action@cross
-        if: contains(matrix.target, 'linux')
       - name: Build
+        run: cargo build --release --locked -p qget-cli ${{ matrix.features }}
+      - name: Package
         shell: bash
         run: |
-          if [[ "${{ matrix.target }}" == *linux* ]]; then BUILD=cross; else BUILD=cargo; fi
-          $BUILD build --release --locked -p qget-cli --target ${{ matrix.target }} ${{ matrix.features }}
-          name=qget-${GITHUB_REF_NAME}-${{ matrix.target }}${{ matrix.suffix }}
-          mkdir -p dist/$name
-          cp target/${{ matrix.target }}/release/qget README.md LICENSE dist/$name/
-          tar -C dist -czf dist/$name.tar.gz $name
-          (cd dist && shasum -a 256 $name.tar.gz > $name.tar.gz.sha256)
+          dir=qget-${GITHUB_REF_NAME}-${{ matrix.name }}
+          mkdir -p $dir
+          cp target/release/qget README.md LICENSE $dir/
+          ./target/release/qget man > $dir/qget.1
+          ./target/release/qget completions bash > $dir/qget.bash
+          ./target/release/qget completions zsh > $dir/_qget
+          ./target/release/qget completions fish > $dir/qget.fish
+          tar -czf $dir.tar.gz $dir
+          shasum -a 256 $dir.tar.gz > $dir.tar.gz.sha256
       - uses: actions/attest-build-provenance@v2
         with:
-          subject-path: dist/*.tar.gz
+          subject-path: qget-*.tar.gz
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.tar.gz
-            dist/*.sha256
+            qget-*.tar.gz
+            qget-*.tar.gz.sha256
