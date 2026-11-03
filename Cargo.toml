@@ -1,0 +1,73 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/qget-core",
+    "crates/qget-runtime",
+    "crates/qget-http",
+    "crates/qget-extract",
+    "crates/qget-p2p",
+    "crates/qget",
+    "crates/qget-cli",
+    "crates/qget-testserver",
+]
+default-members = ["crates/qget-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "Apache-2.0"
+repository = "https://github.com/dharrsan-hq/qget"
+homepage = "https://github.com/dharrsan-hq/qget"
+authors = ["Dharrsan Amarnath <dharrsan.subscriptions@gmail.com>"]
+
+[workspace.dependencies]
+qget-core = { path = "crates/qget-core", version = "0.1.0" }
+qget-runtime = { path = "crates/qget-runtime", version = "0.1.0" }
+qget-http = { path = "crates/qget-http", version = "0.1.0" }
+qget-extract = { path = "crates/qget-extract", version = "0.1.0" }
+qget-p2p = { path = "crates/qget-p2p", version = "0.1.0" }
+qget = { path = "crates/qget", version = "0.1.0", default-features = false }
+qget-testserver = { path = "crates/qget-testserver", version = "0.1.0" }
+
+anyhow = "1"
+base64 = "0.22"
+blake3 = "1.8"
+bytes = "1"
+clap = { version = "4.6", features = ["derive", "env", "wrap_help"] }
+clap_complete = "4.6"
+clap_mangen = "0.3"
+crc32c = "0.6"
+crossbeam-channel = "0.5"
+filetime = "0.2"
+flate2 = "1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+hex = "0.4"
+hmac = "0.12"
+indicatif = "0.18"
+liblzma = "0.4"
+lz4_flex = { version = "0.11", default-features = false, features = ["std", "frame"] }
+proptest = "1"
+rustix = { version = "1", features = ["fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+spake2 = "0.4"
+tar = { version = "0.4", default-features = false }
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "fs", "signal"] }
+tokio-util = "0.7"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+xxhash-rust = { version = "0.8", features = ["xxh32"] }
+zstd = "0.13"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev.package."*"]
+opt-level = 2
