@@ -10,6 +10,9 @@ authors.workspace = true
 
 # LIB-02: this crate must stay free of I/O, async runtimes, networking and TLS.
 # CI enforces the allow-list in scripts/check-core-deps.sh.
+[lints]
+workspace = true
+
 [dependencies]
 blake3 = { workspace = true }
 bytes = { workspace = true }

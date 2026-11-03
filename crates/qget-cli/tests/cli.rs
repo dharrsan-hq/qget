@@ -267,3 +267,73 @@ fn qget_core_rng(seed: u64) -> impl FnMut() -> u64 {
         x
     }
 }
+
+/// Three real processes: mailbox, sender, receiver using the short code.
+#[cfg(feature = "p2p")]
+#[tokio::test(flavor = "multi_thread")]
+async fn yeet_and_yoink_with_short_code() {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let port = {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        l.local_addr().unwrap().port()
+    };
+    let mbox = format!("127.0.0.1:{port}");
+    let mut mailbox = qget()
+        .args(["mailbox", "--listen", &mbox])
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("hello.bin");
+    let data = test_data(5 * MIB, 9);
+    std::fs::write(&src, &data).unwrap();
+    let mut sender = qget()
+        .args([
+            "yeet",
+            "--no-relay",
+            "--bind",
+            "127.0.0.1:0",
+            "--once",
+            "--mailbox",
+            &mbox,
+        ])
+        .arg(&src)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut lines = BufReader::new(sender.stderr.take().unwrap()).lines();
+    let mut code = None;
+    while let Ok(Some(l)) = tokio::time::timeout(Duration::from_secs(20), lines.next_line())
+        .await
+        .unwrap()
+    {
+        if let Some(c) = l
+            .trim()
+            .strip_prefix("qget yoink ")
+            .filter(|c| !c.starts_with("qget1"))
+        {
+            code = Some(c.to_string());
+            break;
+        }
+    }
+    let code = code.expect("sender printed a code");
+    tokio::spawn(async move { while let Ok(Some(_)) = lines.next_line().await {} });
+    let out = dir.path().join("got.bin");
+    let st = qget()
+        .args(["yoink", "-q", "--no-relay", "--mailbox", &mbox, "-O"])
+        .arg(&out)
+        .arg(&code)
+        .status()
+        .await
+        .unwrap();
+    assert!(st.success());
+    assert_eq!(std::fs::read(&out).unwrap(), data);
+    let st = tokio::time::timeout(Duration::from_secs(20), sender.wait())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(st.success(), "--once sender exits after serving");
+    mailbox.start_kill().unwrap();
+}

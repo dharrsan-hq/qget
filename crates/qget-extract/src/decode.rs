@@ -216,22 +216,22 @@ impl OrderedDecoder {
                         self.frame_hash = ck.then(|| Xxh32::new(0));
                     }
                     Out::FrameEnd(expected) => {
-                        if let (Some(h), Some(e)) = (self.frame_hash.take(), expected) {
-                            if h.digest() != e {
-                                return Err(io::Error::other("LZ4 content checksum mismatch"));
-                            }
+                        if let (Some(h), Some(e)) = (self.frame_hash.take(), expected)
+                            && h.digest() != e
+                        {
+                            return Err(io::Error::other("LZ4 content checksum mismatch"));
                         }
                     }
                 }
                 continue;
             }
-            if let Some(end) = self.end {
-                if self.next >= end {
-                    return match self.end_err.take() {
-                        Some(e) => Err(io::Error::other(e)),
-                        None => Ok(false),
-                    };
-                }
+            if let Some(end) = self.end
+                && self.next >= end
+            {
+                return match self.end_err.take() {
+                    Some(e) => Err(io::Error::other(e)),
+                    None => Ok(false),
+                };
             }
             match self.rx.recv() {
                 Ok(Msg::Block(seq, out)) => {
@@ -269,10 +269,10 @@ fn run_job(job: Job) -> std::result::Result<Out, String> {
             max,
             checksum,
         } => {
-            if let Some(c) = checksum {
-                if xxh32(&data, 0) != c {
-                    return Err("LZ4 block checksum mismatch".into());
-                }
+            if let Some(c) = checksum
+                && xxh32(&data, 0) != c
+            {
+                return Err("LZ4 block checksum mismatch".into());
             }
             if uncompressed {
                 return Ok(Out::Data(data));

@@ -262,13 +262,14 @@ fn extract_inner<R: Read>(reader: R, opts: &TarOptions, pool: &Pool) -> Result<T
         let mtime = header.mtime().unwrap_or(0);
         let target = root.join(&rel);
         let ensure_parent = |created: &mut HashSet<PathBuf>| -> Result<()> {
-            if let Some(parent) = rel.parent() {
-                if !parent.as_os_str().is_empty() && !created.contains(parent) {
-                    fs::create_dir_all(root.join(parent))
-                        .map_err(|e| Error::io(format!("create {}", parent.display()), e))?;
-                    for a in parent.ancestors() {
-                        created.insert(a.to_path_buf());
-                    }
+            if let Some(parent) = rel.parent()
+                && !parent.as_os_str().is_empty()
+                && !created.contains(parent)
+            {
+                fs::create_dir_all(root.join(parent))
+                    .map_err(|e| Error::io(format!("create {}", parent.display()), e))?;
+                for a in parent.ancestors() {
+                    created.insert(a.to_path_buf());
                 }
             }
             Ok(())

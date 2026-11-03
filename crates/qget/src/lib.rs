@@ -46,8 +46,7 @@ pub fn replay_trace(path: &std::path::Path) -> Result<(usize, Option<String>)> {
     ))
 }
 
+/// Peer-to-peer transfer (feature `p2p`).
 #[cfg(feature = "p2p")]
-pub mod p2p {
-    //! Peer-to-peer transfer (feature `p2p`).
-    pub use qget_p2p::*;
-}
+#[path = "p2p_ops.rs"]
+pub mod p2p;

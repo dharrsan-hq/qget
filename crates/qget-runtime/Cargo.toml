@@ -9,6 +9,9 @@ repository.workspace = true
 authors.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 qget-core = { workspace = true }
 bytes = { workspace = true }

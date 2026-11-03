@@ -104,14 +104,14 @@ impl HttpClient {
         // HEAD for metadata; failures (e.g. 403/405 on GET-only presigned
         // URLs) are fine because the ranged GET below is authoritative.
         let mut head_size = None;
-        if let Ok(resp) = self.client().head(url).send().await {
-            if resp.status().is_success() {
-                info.url = resp.url().to_string();
-                head_size = header_u64(resp.headers(), header::CONTENT_LENGTH);
-                info.validator = validator_from(resp.headers());
-                info.filename = filename_from(resp.headers());
-                info.digest = digest_from(resp.headers());
-            }
+        if let Ok(resp) = self.client().head(url).send().await
+            && resp.status().is_success()
+        {
+            info.url = resp.url().to_string();
+            head_size = header_u64(resp.headers(), header::CONTENT_LENGTH);
+            info.validator = validator_from(resp.headers());
+            info.filename = filename_from(resp.headers());
+            info.digest = digest_from(resp.headers());
         }
         let resp = self
             .client()
@@ -344,12 +344,13 @@ pub fn percent_decode(s: &str) -> String {
     let mut i = 0;
     let hex = |b: u8| (b as char).to_digit(16).map(|d| d as u8);
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(h), Some(l)) = (hex(bytes[i + 1]), hex(bytes[i + 2])) {
-                out.push(h << 4 | l);
-                i += 3;
-                continue;
-            }
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && let (Some(h), Some(l)) = (hex(bytes[i + 1]), hex(bytes[i + 2]))
+        {
+            out.push(h << 4 | l);
+            i += 3;
+            continue;
         }
         out.push(bytes[i]);
         i += 1;
@@ -497,13 +498,13 @@ impl Source for HttpSource {
                             )));
                         }
                     }
-                    if let Some(len) = header_u64(h, header::CONTENT_LENGTH) {
-                        if len != range.len() {
-                            return Err(FailKind::Transient(format!(
-                                "Content-Length {len} does not match range length {}",
-                                range.len()
-                            )));
-                        }
+                    if let Some(len) = header_u64(h, header::CONTENT_LENGTH)
+                        && len != range.len()
+                    {
+                        return Err(FailKind::Transient(format!(
+                            "Content-Length {len} does not match range length {}",
+                            range.len()
+                        )));
                     }
                     // A changed strong ETag on a 206 means the object changed
                     // (servers that ignore If-Range).

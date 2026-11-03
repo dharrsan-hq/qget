@@ -430,7 +430,8 @@ fn tar_lz4(files: &[(&str, Vec<u8>)]) -> Vec<u8> {
         append(&mut b, name, d);
     }
     let tar = b.into_inner().unwrap();
-    let out = std::process::Command::new("lz4")
+
+    std::process::Command::new("lz4")
         .args(["-c", "-q"])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -444,8 +445,7 @@ fn tar_lz4(files: &[(&str, Vec<u8>)]) -> Vec<u8> {
             w.join().unwrap()?;
             Ok(o.stdout)
         })
-        .expect("lz4 CLI required for this test");
-    out
+        .expect("lz4 CLI required for this test")
 }
 
 struct TarB(Vec<u8>);

@@ -247,7 +247,7 @@ pub fn run_with_crash(
             }
         }
 
-        if now % TICK_MS == 0 {
+        if now.is_multiple_of(TICK_MS) {
             if cfg.engine.window.is_some() {
                 let available = engine.coverage().contiguous_end(head);
                 let step = (cfg.consumer_rate * TICK_MS as f64) as u64;

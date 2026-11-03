@@ -18,8 +18,11 @@ default = ["http", "extract"]
 http = []
 extract = ["dep:qget-extract"]
 # Opt-in (AD-8): pulls in iroh. The default build must not depend on it.
-p2p = ["dep:qget-p2p"]
+p2p = ["dep:qget-p2p", "dep:tar", "dep:tempfile"]
 http3 = ["qget-http/http3"]
+
+[lints]
+workspace = true
 
 [dependencies]
 qget-core = { workspace = true }
@@ -27,12 +30,16 @@ qget-runtime = { workspace = true }
 qget-http = { workspace = true }
 qget-extract = { workspace = true, optional = true }
 qget-p2p = { workspace = true, optional = true }
+tar = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
 qget-testserver = { workspace = true }
+qget-p2p = { workspace = true }
+blake3 = { workspace = true }
 tempfile = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }

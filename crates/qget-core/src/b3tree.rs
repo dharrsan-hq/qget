@@ -114,15 +114,10 @@ impl Outboard {
     }
 
     pub fn cvs_from_bytes(bytes: &[u8]) -> Option<Vec<ChainingValue>> {
-        if bytes.len() % 32 != 0 {
+        if !bytes.len().is_multiple_of(32) {
             return None;
         }
-        Some(
-            bytes
-                .chunks_exact(32)
-                .map(|c| <[u8; 32]>::try_from(c).expect("32 bytes"))
-                .collect(),
-        )
+        Some(bytes.as_chunks::<32>().0.to_vec())
     }
 }
 

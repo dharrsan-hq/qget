@@ -19,6 +19,9 @@ extract = ["qget/extract"]
 p2p = ["qget/p2p"]
 http3 = ["qget/http3"]
 
+[lints]
+workspace = true
+
 [dependencies]
 # LIB-03: the CLI uses only the public `qget` API.
 qget = { workspace = true, features = ["http"] }

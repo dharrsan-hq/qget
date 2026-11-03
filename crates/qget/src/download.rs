@@ -402,14 +402,14 @@ impl Download {
         }
         cfg.initial_conns = cfg.initial_conns.min(cfg.max_conns);
         cfg.hedge = !self.polite;
-        if let Some(p) = &file_path {
-            if qget_runtime::fsutil::is_rotational(p) {
-                // HDDs: fewer, larger sequential writes (§10.5).
-                cfg.min_block = 16 * MIB;
-                cfg.initial_block = 32 * MIB;
-                cfg.max_conns = cfg.max_conns.min(8);
-                cfg.initial_conns = cfg.initial_conns.min(cfg.max_conns);
-            }
+        if let Some(p) = &file_path
+            && qget_runtime::fsutil::is_rotational(p)
+        {
+            // HDDs: fewer, larger sequential writes (§10.5).
+            cfg.min_block = 16 * MIB;
+            cfg.initial_block = 32 * MIB;
+            cfg.max_conns = cfg.max_conns.min(8);
+            cfg.initial_conns = cfg.initial_conns.min(cfg.max_conns);
         }
 
         let mut notes = Vec::new();
@@ -509,21 +509,21 @@ impl Download {
         let mut hash = run.sink.hash.clone();
         let mut verified = expected.is_some();
         let output_path = run.sink.output.clone();
-        if self.verify_after {
-            if let Some(p) = output_path.as_ref().filter(|p| p.is_file()) {
-                let algo = expected.as_ref().map_or(HashAlgo::Sha256, |e| e.algo);
-                let h = hash_file(p, algo)?;
-                if let Some(e) = &expected {
-                    if &h != e {
-                        return Err(Error::Integrity {
-                            expected: e.to_string(),
-                            actual: format!("{h} (re-read from disk)"),
-                        });
-                    }
-                }
-                verified = expected.is_some();
-                hash = Some(h);
+        if self.verify_after
+            && let Some(p) = output_path.as_ref().filter(|p| p.is_file())
+        {
+            let algo = expected.as_ref().map_or(HashAlgo::Sha256, |e| e.algo);
+            let h = hash_file(p, algo)?;
+            if let Some(e) = &expected
+                && &h != e
+            {
+                return Err(Error::Integrity {
+                    expected: e.to_string(),
+                    actual: format!("{h} (re-read from disk)"),
+                });
             }
+            verified = expected.is_some();
+            hash = Some(h);
         }
         let consumer = run.sink.consumer.clone();
         if let Some(c) = &consumer {
@@ -550,10 +550,10 @@ impl Download {
     }
 
     fn file_name(&self, info: &RemoteInfo) -> String {
-        if self.content_disposition {
-            if let Some(n) = &info.filename {
-                return n.clone();
-            }
+        if self.content_disposition
+            && let Some(n) = &info.filename
+        {
+            return n.clone();
         }
         name_from_url(&self.urls[0]).unwrap_or_else(|| "index.html".into())
     }
@@ -612,10 +612,9 @@ impl Download {
             let base = primary.url.split('?').next().unwrap_or(&primary.url);
             for (suffix, algo) in [(".sha256", HashAlgo::Sha256), (".sha512", HashAlgo::Sha512)] {
                 if let Ok(Some(text)) = client.fetch_text(&format!("{base}{suffix}"), 1 << 16).await
+                    && let Some(h) = parse_sums_file(&text, &name, algo)
                 {
-                    if let Some(h) = parse_sums_file(&text, &name, algo) {
-                        return Ok(Some(h));
-                    }
+                    return Ok(Some(h));
                 }
             }
         }
@@ -684,10 +683,10 @@ impl Download {
                         });
                     }
                 }
-                if let Some(s) = info.size {
-                    if got != s {
-                        return Err(Error::Network(format!("body ended at {got} of {s} bytes")));
-                    }
+                if let Some(s) = info.size
+                    && got != s
+                {
+                    return Err(Error::Network(format!("body ended at {got} of {s} bytes")));
                 }
                 Ok(())
             }
@@ -695,14 +694,14 @@ impl Download {
             match result {
                 Ok(()) => {
                     let hash = hasher.map(qget_core::Hasher::finalize);
-                    if let (Some(a), Some(e)) = (&hash, &expected) {
-                        if a != e {
-                            out.abort();
-                            return Err(Error::Integrity {
-                                expected: e.to_string(),
-                                actual: a.to_string(),
-                            });
-                        }
+                    if let (Some(a), Some(e)) = (&hash, &expected)
+                        && a != e
+                    {
+                        out.abort();
+                        return Err(Error::Integrity {
+                            expected: e.to_string(),
+                            actual: a.to_string(),
+                        });
                     }
                     let rep = out.finish()?;
                     let _ = std::io::stdout().flush();

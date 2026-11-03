@@ -263,7 +263,7 @@ pub fn parse_size(s: &str) -> Result<u64, String> {
         .trim()
         .parse()
         .map_err(|_| format!("invalid size {s:?}"))?;
-    if !(v >= 0.0) {
+    if !v.is_finite() || v < 0.0 {
         return Err(format!("invalid size {s:?}"));
     }
     Ok((v * mult as f64) as u64)

@@ -13,6 +13,9 @@ publish = false
 # Experimental; also requires RUSTFLAGS="--cfg reqwest_unstable".
 http3 = ["reqwest/http3"]
 
+[lints]
+workspace = true
+
 [dependencies]
 qget-core = { workspace = true }
 base64 = { workspace = true }

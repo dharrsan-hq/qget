@@ -113,14 +113,14 @@ impl Sink for StreamSink {
         }
         let hash = self.hasher.take().map(Hasher::finalize);
         let consumer = self.consumer.take().expect("finish called once");
-        if let (Some(actual), Some(expected)) = (&hash, &self.expected) {
-            if actual != expected {
-                consumer.abort();
-                return Err(Error::Integrity {
-                    expected: expected.to_string(),
-                    actual: actual.to_string(),
-                });
-            }
+        if let (Some(actual), Some(expected)) = (&hash, &self.expected)
+            && actual != expected
+        {
+            consumer.abort();
+            return Err(Error::Integrity {
+                expected: expected.to_string(),
+                actual: actual.to_string(),
+            });
         }
         let report = consumer.finish()?;
         Ok(SinkReport {

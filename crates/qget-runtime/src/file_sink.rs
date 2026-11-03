@@ -177,13 +177,14 @@ impl FileSink {
 
         // Disk-space pre-check, then reserve the space (DUR-07, DUR-08).
         let needed = size.saturating_sub(fsutil::allocated(&file));
-        if let Some(avail) = fsutil::available_space(&part) {
-            if avail < needed.saturating_add(16 << 20) && needed > 0 {
-                return Err(Error::DiskFull {
-                    needed,
-                    available: avail,
-                });
-            }
+        if let Some(avail) = fsutil::available_space(&part)
+            && avail < needed.saturating_add(16 << 20)
+            && needed > 0
+        {
+            return Err(Error::DiskFull {
+                needed,
+                available: avail,
+            });
         }
         fsutil::preallocate(&file, size)?;
         if file.metadata().map(|m| m.len()).unwrap_or(0) != size {
@@ -300,11 +301,11 @@ impl FileSink {
             return Ok(());
         }
         // Fast path: the write that just happened starts exactly at the frontier.
-        if let Some((off, data)) = direct {
-            if off == self.ordered_upto {
-                self.feed(data)?;
-                self.ordered_upto += data.len() as u64;
-            }
+        if let Some((off, data)) = direct
+            && off == self.ordered_upto
+        {
+            self.feed(data)?;
+            self.ordered_upto += data.len() as u64;
         }
         let frontier = self.written.contiguous_end(self.ordered_upto);
         let mut buf = Vec::new();
@@ -337,10 +338,10 @@ fn same_resource(prev: &Header, now: &Header) -> Option<bool> {
     if prev.size != now.size {
         return Some(false);
     }
-    if let (Some(a), Some(b)) = (&prev.expected, &now.expected) {
-        if a.algo == b.algo {
-            return Some(a == b);
-        }
+    if let (Some(a), Some(b)) = (&prev.expected, &now.expected)
+        && a.algo == b.algo
+    {
+        return Some(a == b);
     }
     prev.validator.same_as(&now.validator)
 }

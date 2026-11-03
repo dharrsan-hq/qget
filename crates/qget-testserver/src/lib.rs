@@ -108,7 +108,7 @@ impl FaultRule {
 
     fn applies(&self, n: u64) -> bool {
         n >= self.first
-            && (n - self.first) % self.every.max(1) == 0
+            && (n - self.first).is_multiple_of(self.every.max(1))
             && (n - self.first) / self.every.max(1) < self.count
     }
 }
@@ -387,10 +387,10 @@ async fn handle_conn(sock: TcpStream, sh: Arc<Shared>) -> std::io::Result<()> {
                 continue;
             }
             let mut extra = String::new();
-            if cfg.repr_digest {
-                if let Some(d) = &sh.digest_b64 {
-                    extra = format!("Repr-Digest: sha-256=:{d}:\r\n");
-                }
+            if cfg.repr_digest
+                && let Some(d) = &sh.digest_b64
+            {
+                extra = format!("Repr-Digest: sha-256=:{d}:\r\n");
             }
             let resp = format!("HTTP/1.1 200 OK\r\nContent-Length: {size}\r\n{common}{extra}\r\n");
             wr.write_all(resp.as_bytes()).await?;
@@ -413,8 +413,8 @@ async fn handle_conn(sock: TcpStream, sh: Arc<Shared>) -> std::io::Result<()> {
         let inflight = sh.stats.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
         sh.stats.max_in_flight.fetch_max(inflight, Ordering::SeqCst);
         let result = async {
-            if let Some(max) = cfg.max_concurrent {
-                if inflight > max as u64 {
+            if let Some(max) = cfg.max_concurrent
+                && inflight > max as u64 {
                     sh.stats.throttled.fetch_add(1, Ordering::Relaxed);
                     wr.write_all(
                         b"HTTP/1.1 429 Too Many Requests\r\nRetry-After: 1\r\nContent-Length: 0\r\n\r\n",
@@ -422,7 +422,6 @@ async fn handle_conn(sock: TcpStream, sh: Arc<Shared>) -> std::io::Result<()> {
                     .await?;
                     return Ok(true);
                 }
-            }
             if let Some(Fault::Status(code, retry)) = &fault {
                 let ra = retry.map(|s| format!("Retry-After: {s}\r\n")).unwrap_or_default();
                 let resp = format!("HTTP/1.1 {code} Fault\r\n{ra}Content-Length: 0\r\n\r\n");
