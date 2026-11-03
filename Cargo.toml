@@ -11,6 +11,7 @@ members = [
     "crates/qget-testserver",
 ]
 default-members = ["crates/qget-cli"]
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"

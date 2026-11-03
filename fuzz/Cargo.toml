@@ -1,0 +1,35 @@
+[package]
+name = "qget-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+qget-core = { path = "../crates/qget-core" }
+qget-extract = { path = "../crates/qget-extract" }
+tempfile = "3"
+
+# Not part of the main workspace: requires nightly (`cargo +nightly fuzz run <target>`).
+[workspace]
+
+[[bin]]
+name = "content_range"
+path = "fuzz_targets/content_range.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "journal"
+path = "fuzz_targets/journal.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "extract"
+path = "fuzz_targets/extract.rs"
+test = false
+doc = false

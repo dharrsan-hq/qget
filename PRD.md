@@ -4,9 +4,9 @@
 |---|---|
 | **Product** | qget |
 | **Owner** | Dharrsan |
-| **Version** | 0.2 (draft) |
+| **Version** | 0.3 |
 | **Date** | 2026-10-28 |
-| **Status** | Draft for review |
+| **Status** | Implemented through M6 (v0.1, unreleased); see §18 |
 | **Supersedes** | Sections 3, 4, 6–8 of `PROPOSAL.md` |
 
 > **How to read this document.** Every external claim is backed by a source in §17. Claims we could not verify are marked **[UNVERIFIED]**. Figures that come only from a vendor's own marketing are marked **[vendor claim]**. Performance numbers for qget are **targets**, not results. Nothing has been measured yet.
@@ -32,6 +32,7 @@
 15. Release plan and milestones
 16. Risks and open questions
 17. References
+18. Implementation status (v0.1)
 
 ---
 
@@ -881,3 +882,63 @@ All of these were opened during research on 2026-10-28 unless marked otherwise. 
 - [R-turmoil] tokio-rs/turmoil. https://github.com/tokio-rs/turmoil
 - [R-madsim] madsim-rs/madsim. https://github.com/madsim-rs/madsim
 - [R-VOPR] TigerBeetle VOPR. https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/internals/vopr.md
+
+---
+
+## 18. Implementation status (v0.1)
+
+Status as of 2026-11-04. ✅ implemented and tested · ◐ partial · ⏳ not yet.
+
+### 18.1 By requirement group
+
+| Group | Status | Notes |
+|---|---|---|
+| HTTP-01..10, 15, 17 (core HTTP) | ✅ | Fault-injection suite: short bodies, resets, wrong `Content-Range`, ignored `Range`, 5xx, 429/503 + `Retry-After`, stalls, content change |
+| HTTP-11 mirrors | ✅ | Identity: same strong ETag, or a checksum; mirrors with different ETags and no checksum are refused |
+| HTTP-12 refresh | ✅ | `--refresh-cmd`, re-probes and checks size + validator |
+| HTTP-13 HTTP/2 | ✅ | Off by default; when on, each connection is a separate client (separate TCP) |
+| HTTP-14 HTTP/3 | ◐ | Build feature `http3` (needs `RUSTFLAGS=--cfg reqwest_unstable`); not tested against an h3 server |
+| HTTP-16 Happy Eyeballs, `-4/-6` | ✅ | Via hyper-util connector defaults |
+| HTTP-18 batch `-i` | ✅ | Sequential |
+| DUR-01..09 | ✅ | `kill -9` test: 30 random kills → byte-exact result; journal torn-tail and lock tests |
+| INT-01..07 | ◐ | INT-04 manifests: `--checksum-url` handles `SHA256SUMS`; multi-part concatenated manifests (Arbitrum style) not implemented |
+| EXT-01..06, 08, 09 | ✅ | System `lz4`/`zstd` archives verified in tests; hostile-archive tests |
+| EXT-07 resumable extract | ◐ | `--keep-archive` makes it resumable; mid-stream checkpoints without keeping the archive are not implemented |
+| P2P-01..09 | ✅ | Loopback QUIC tests incl. tampered provider, lying mirror, swarm, resume; WAN/NAT matrix not run |
+| CLI-01..08 | ✅ | |
+| LIB-01..10 | ✅ | `scripts/check-deps.sh` enforces LIB-02/LIB-08 |
+| LIB-11 publishing | ⏳ | Nothing published (crates.io name not reserved, Q10) |
+| PERF-* | ◐ | Measured on loopback only (§18.3) |
+| DET-01..06 | ✅ | Seed sweeps (3,000 locally; 100k nightly in CI config), trace replay test |
+| NET-01..03 | ✅ | NET-04 (`--congestion=bbr`) ⏳ |
+| SEC-01..08 | ◐ | Fuzz targets written (`fuzz/`, need nightly; not yet run); proptest covers parsers in CI; release signing via build-provenance attestation, no minisign key yet |
+
+### 18.2 Deviations from the PRD and why
+
+| PRD said | Built | Reason |
+|---|---|---|
+| hyper + custom pool | reqwest 0.13 (on hyper, rustls + aws-lc-rs) | Proxy, redirects, TLS and pooling for free; per-connection control kept by using HTTP/1.1 and one client per pool for HTTP/2 |
+| turmoil for simulation | Deterministic simulator inside `qget-core` (`sim.rs`) | The engine is a pure state machine, so a step simulator with seeded faults covers DET/DST without a network shim |
+| bao-tree for verified ranges | BLAKE3 `hazmat` chaining values per 1 MiB group | Root is the plain BLAKE3 hash (`b3sum` value); no extra dependency; per-group verification is all hybrid/swarm needs |
+| iroh-blobs-like protocol | Own 2-op protocol (info, range) with a capability secret | Smaller surface; iroh-blobs is not production-marked |
+| SPAKE2 authenticates endpoint IDs | SPAKE2 + key confirmation, then the ticket encrypted with ChaCha20-Poly1305 under the PAKE key | Ticket contains a capability secret that must stay confidential from the mailbox |
+| io_uring backend | Not built | PRD made it opt-in after benchmarks; `pwrite` path is not the bottleneck in measurements so far |
+| `sync_file_range` smoothing | Not built | Group commit every 1 s / 256 MiB bounds dirty data instead |
+| zstd seekable via tail index | Frame walking on the stream | Works for seekable, pzstd and plain multi-frame without an extra request; single large frames fall back to serial |
+| gzip parallel (rapidgzip) | Serial | P2 in the PRD |
+| Default public mailbox | None; `--mailbox` / `QGET_MAILBOX` | Depends on Q8 (hosting); tickets work without a mailbox |
+
+### 18.3 Measured performance
+
+Loopback benchmarks with emulated per-connection caps and latency are in
+`bench/results/` (harness: `bench/bench.py`). Real-network numbers (S3, R2,
+snapshot providers, `tc netem` matrix) and Surge comparisons are still to do.
+
+### 18.4 Next
+
+1. Real-network benchmark matrix and Surge comparison (§14.1).
+2. Run fuzzers on nightly for 24 h (release gate §14.4).
+3. WAN/NAT test matrix for P2P; decide on a hosted mailbox and relay (Q8).
+4. EXT-07 checkpoints without `--keep-archive`; Arbitrum-style multi-part manifests.
+5. Answer Q1 (ownership) before any public launch.
+

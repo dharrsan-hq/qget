@@ -1,0 +1,45 @@
+# Maintainer: Dharrsan Amarnath <dharrsan.subscriptions@gmail.com>
+pkgname=qget
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Fast, verified, resumable downloads with parallel stream-extraction"
+arch=('x86_64' 'aarch64')
+url="https://github.com/dharrsan-hq/qget"
+license=('Apache-2.0')
+depends=('gcc-libs' 'glibc')
+makedepends=('cargo' 'clang')
+checkdepends=('lz4' 'zstd')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')  # replace with the release tarball checksum when publishing
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo build --frozen --release -p qget-cli
+  ./target/release/qget man > qget.1
+  ./target/release/qget completions bash > qget.bash
+  ./target/release/qget completions zsh > _qget
+  ./target/release/qget completions fish > qget.fish
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen --workspace
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/qget "$pkgdir/usr/bin/qget"
+  install -Dm644 qget.1 "$pkgdir/usr/share/man/man1/qget.1"
+  install -Dm644 qget.bash "$pkgdir/usr/share/bash-completion/completions/qget"
+  install -Dm644 _qget "$pkgdir/usr/share/zsh/site-functions/_qget"
+  install -Dm644 qget.fish "$pkgdir/usr/share/fish/vendor_completions.d/qget.fish"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
