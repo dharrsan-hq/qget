@@ -1,11 +1,38 @@
 [package]
 name = "qget"
+description = "Fast, verified, resumable downloads with parallel stream-extraction (library)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+readme = "../../README.md"
+keywords = ["download", "http", "range", "resume", "extract"]
+categories = ["network-programming", "command-line-utilities"]
+# LIB-11: the library is published as experimental from ~v0.5.
 publish = false
 
+[features]
+default = ["http", "extract"]
+http = []
+extract = ["dep:qget-extract"]
+# Opt-in (AD-8): pulls in iroh. The default build must not depend on it.
+p2p = ["dep:qget-p2p"]
+http3 = ["qget-http/http3"]
+
 [dependencies]
+qget-core = { workspace = true }
+qget-runtime = { workspace = true }
+qget-http = { workspace = true }
+qget-extract = { workspace = true, optional = true }
+qget-p2p = { workspace = true, optional = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+qget-testserver = { workspace = true }
+tempfile = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }

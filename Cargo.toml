@@ -57,7 +57,7 @@ spake2 = "0.4"
 tar = { version = "0.4", default-features = false }
 tempfile = "3"
 thiserror = "2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "fs", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "fs", "signal", "process"] }
 tokio-util = "0.7"
 toml = "0.8"
 tracing = "0.1"

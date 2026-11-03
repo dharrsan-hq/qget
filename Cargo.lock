@@ -1165,6 +1165,20 @@ dependencies = [
 [[package]]
 name = "qget"
 version = "0.1.0"
+dependencies = [
+ "hex",
+ "qget-core",
+ "qget-extract",
+ "qget-http",
+ "qget-p2p",
+ "qget-runtime",
+ "qget-testserver",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
 
 [[package]]
 name = "qget-cli"
