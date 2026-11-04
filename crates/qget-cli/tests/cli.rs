@@ -337,3 +337,18 @@ async fn yeet_and_yoink_with_short_code() {
     assert!(st.success(), "--once sender exits after serving");
     mailbox.start_kill().unwrap();
 }
+
+#[tokio::test]
+async fn non_url_arguments_get_a_clear_error() {
+    let out = qget().args(["not-a-url"]).output().await.unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("is not a URL"));
+    let out = qget().args(["ftp://example.com/x"]).output().await.unwrap();
+    assert!(String::from_utf8_lossy(&out.stderr).contains("unsupported URL scheme"));
+    #[cfg(not(feature = "p2p"))]
+    {
+        let out = qget().args(["yoink", "qget1abc"]).output().await.unwrap();
+        assert_eq!(out.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&out.stderr).contains("peer-to-peer"));
+    }
+}

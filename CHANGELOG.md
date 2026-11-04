@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.1.0 — unreleased (see docs/release-notes/v0.1.0.md)
+## 0.1.1 — 2026-11-04 (see docs/release-notes/v0.1.1.md)
+
+- Peer-to-peer builds for every platform (`-p2p` archives for Linux x86_64/arm64 and macOS Apple Silicon/Intel).
+- Clear error when an argument is not an http(s) URL, or when a P2P command or ticket is used with a build that lacks P2P.
+- HDD tuning is opt-in (`--hdd`) instead of detected: virtual disks report rotational=1 and were limiting downloads to 8 connections.
+
+## 0.1.0 — 2026-11-04 (see docs/release-notes/v0.1.0.md)
 
 First feature-complete version of the PRD's M0–M6 scope.
 

@@ -2719,7 +2719,7 @@ dependencies = [
 
 [[package]]
 name = "qget"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake3",
  "hex",
@@ -2739,7 +2739,7 @@ dependencies = [
 
 [[package]]
 name = "qget-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "clap_complete",
@@ -2762,7 +2762,7 @@ dependencies = [
 
 [[package]]
 name = "qget-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake3",
  "bytes",
@@ -2777,7 +2777,7 @@ dependencies = [
 
 [[package]]
 name = "qget-extract"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "crossbeam-channel",
  "filetime",
@@ -2796,7 +2796,7 @@ dependencies = [
 
 [[package]]
 name = "qget-http"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2810,7 +2810,7 @@ dependencies = [
 
 [[package]]
 name = "qget-p2p"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "blake3",
@@ -2833,7 +2833,7 @@ dependencies = [
 
 [[package]]
 name = "qget-runtime"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "qget-core",
@@ -2848,7 +2848,7 @@ dependencies = [
 
 [[package]]
 name = "qget-testserver"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "clap",

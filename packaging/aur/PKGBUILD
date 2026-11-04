@@ -1,6 +1,6 @@
 # Maintainer: Dharrsan Amarnath <dharrsan.subscriptions@gmail.com>
 pkgname=qget
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Fast, verified, resumable downloads with parallel stream-extraction"
 arch=('x86_64' 'aarch64')

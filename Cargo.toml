@@ -14,7 +14,7 @@ default-members = ["crates/qget-cli"]
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.95"
 license = "Apache-2.0"
@@ -23,13 +23,13 @@ homepage = "https://github.com/dharrsan-hq/qget"
 authors = ["Dharrsan Amarnath <dharrsan.subscriptions@gmail.com>"]
 
 [workspace.dependencies]
-qget-core = { path = "crates/qget-core", version = "0.1.0" }
-qget-runtime = { path = "crates/qget-runtime", version = "0.1.0" }
-qget-http = { path = "crates/qget-http", version = "0.1.0" }
-qget-extract = { path = "crates/qget-extract", version = "0.1.0" }
-qget-p2p = { path = "crates/qget-p2p", version = "0.1.0" }
-qget = { path = "crates/qget", version = "0.1.0", default-features = false }
-qget-testserver = { path = "crates/qget-testserver", version = "0.1.0" }
+qget-core = { path = "crates/qget-core", version = "0.1.1" }
+qget-runtime = { path = "crates/qget-runtime", version = "0.1.1" }
+qget-http = { path = "crates/qget-http", version = "0.1.1" }
+qget-extract = { path = "crates/qget-extract", version = "0.1.1" }
+qget-p2p = { path = "crates/qget-p2p", version = "0.1.1" }
+qget = { path = "crates/qget", version = "0.1.1", default-features = false }
+qget-testserver = { path = "crates/qget-testserver", version = "0.1.1" }
 
 anyhow = "1"
 base64 = "0.22"

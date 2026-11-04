@@ -170,6 +170,12 @@ async fn run_downloads(mut a: GetArgs) -> i32 {
     });
 
     let urls = std::mem::take(&mut a.urls);
+    for u in &urls {
+        if let Err(msg) = check_url(u) {
+            eprintln!("qget: {msg}");
+            return 2;
+        }
+    }
     let mut worst = 0;
     for url in urls {
         let dl = match build(&a, &cfg, &url, token.clone()) {
@@ -445,6 +451,35 @@ fn explain(r: &Report) {
         "seed:            {} (reproduce with --seed {})",
         r.seed, r.seed
     );
+}
+
+/// Reject arguments that are not http(s) URLs with a helpful message, instead
+/// of a low-level "relative URL without a base" error.
+fn check_url(u: &str) -> Result<(), String> {
+    const P2P: [&str; 5] = ["yeet", "yoink", "send", "receive", "mailbox"];
+    if P2P.contains(&u) || u.starts_with("qget1") {
+        return Err(format!(
+            "{} needs peer-to-peer support, which this build of qget does not include. \
+Download a `-p2p` release binary or install with `cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p`.",
+            if u.starts_with("qget1") {
+                "a qget1… ticket"
+            } else {
+                u
+            }
+        ));
+    }
+    match u.split_once("://") {
+        Some((scheme, rest))
+            if (scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https"))
+                && !rest.is_empty() =>
+        {
+            Ok(())
+        }
+        Some((scheme, _)) => Err(format!(
+            "unsupported URL scheme {scheme:?} in {u:?} (only http and https)"
+        )),
+        None => Err(format!("{u:?} is not a URL (expected http:// or https://)")),
+    }
 }
 
 fn short_url(u: &str) -> String {
