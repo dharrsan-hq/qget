@@ -53,13 +53,13 @@ pub fn preallocate(file: &File, len: u64) -> Result<()> {
     if len == 0 {
         return Ok(());
     }
-    match rustix::fs::fallocate(file, rustix::fs::FallocateFlags::empty(), 0, len) {
+    match reserve(file, len) {
         Ok(()) => Ok(()),
         Err(rustix::io::Errno::NOSPC) => Err(Error::DiskFull {
             needed: len,
             available: 0,
         }),
-        // Filesystems without fallocate (e.g. some FUSE/tmpfs): sparse extend.
+        // Filesystems without preallocation (e.g. some FUSE/tmpfs): sparse extend.
         Err(_) => {
             if file.metadata().map(|m| m.len()).unwrap_or(0) < len {
                 file.set_len(len)
@@ -70,12 +70,38 @@ pub fn preallocate(file: &File, len: u64) -> Result<()> {
     }
 }
 
+/// Allocate disk blocks for `[0, len)` without writing them.
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+pub fn reserve(file: &File, len: u64) -> rustix::io::Result<()> {
+    rustix::fs::fallocate(file, rustix::fs::FallocateFlags::empty(), 0, len)
+}
+
+/// macOS has no fallocate; the file is extended sparsely instead.
+#[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]
+pub fn reserve(_file: &File, _len: u64) -> rustix::io::Result<()> {
+    Err(rustix::io::Errno::NOSYS)
+}
+
+/// Flush everything on the filesystem holding `dir` (one call instead of an
+/// fsync per extracted file). Elsewhere, falls back to `sync()`.
+pub fn sync_filesystem(dir: &File) {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    let _ = rustix::fs::syncfs(dir);
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        let _ = dir;
+        rustix::fs::sync();
+    }
+}
+
 /// Take an exclusive, non-blocking lock on `file` (DUR-09).
 pub fn try_lock(file: &File) -> bool {
     rustix::fs::flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive).is_ok()
 }
 
-/// Whether the block device under `path` is rotational (an HDD).
+/// Whether the block device under `path` is rotational (an HDD). Linux only;
+/// other systems report `false`.
+#[cfg(target_os = "linux")]
 pub fn is_rotational(path: &Path) -> bool {
     use std::os::unix::fs::MetadataExt;
     let dir = path
@@ -97,5 +123,10 @@ pub fn is_rotational(path: &Path) -> bool {
             return v.trim() == "1";
         }
     }
+    false
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn is_rotational(_path: &Path) -> bool {
     false
 }

@@ -14,6 +14,7 @@
 
 mod decode;
 mod format;
+mod platform;
 mod tarw;
 
 pub use format::{Format, detect};
@@ -147,7 +148,7 @@ impl OrderedConsumer for Extractor {
         // Durability: flush the whole filesystem holding the staging dir once,
         // instead of an fsync per file.
         if let Ok(dir) = std::fs::File::open(&self.staging) {
-            let _ = rustix::fs::syncfs(&dir);
+            platform::sync_filesystem(&dir);
         }
         install(&self.staging, &self.dest, self.into_existing)?;
         report.output = Some(self.dest.clone());

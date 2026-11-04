@@ -28,24 +28,48 @@ jobs:
           - name: linux-aarch64
             os: ubuntu-24.04-arm
             features: ""
+          - name: macos-aarch64
+            os: macos-latest
+            features: ""
+          - name: macos-x86_64
+            os: macos-latest
+            features: ""
+            target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - name: Build
-        run: cargo build --release --locked -p qget-cli ${{ matrix.features }}
+        shell: bash
+        run: |
+          target_flag=""
+          [ -n "${{ matrix.target }}" ] && target_flag="--target ${{ matrix.target }}"
+          cargo build --release --locked -p qget-cli ${{ matrix.features }} $target_flag
+          bin=target/${{ matrix.target }}/release/qget
+          [ -f "$bin" ] || bin=target/release/qget
+          mkdir -p out && cp "$bin" out/qget
+          # Man page and completions come from a binary that runs on this runner.
+          gen=out/qget
+          if [ -n "${{ matrix.target }}" ]; then
+            cargo build --release --locked -p qget-cli ${{ matrix.features }}
+            gen=target/release/qget
+          fi
+          $gen --version
+          $gen man > out/qget.1
+          $gen completions bash > out/qget.bash
+          $gen completions zsh > out/_qget
+          $gen completions fish > out/qget.fish
+          file out/qget || true
       - name: Package
         shell: bash
         run: |
           dir=qget-${GITHUB_REF_NAME}-${{ matrix.name }}
           mkdir -p $dir
-          cp target/release/qget README.md LICENSE $dir/
-          ./target/release/qget man > $dir/qget.1
-          ./target/release/qget completions bash > $dir/qget.bash
-          ./target/release/qget completions zsh > $dir/_qget
-          ./target/release/qget completions fish > $dir/qget.fish
+          cp out/qget out/qget.1 out/qget.bash out/_qget out/qget.fish README.md LICENSE $dir/
           tar -czf $dir.tar.gz $dir
-          sha256sum $dir.tar.gz > $dir.tar.gz.sha256
+          shasum -a 256 $dir.tar.gz > $dir.tar.gz.sha256
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: qget-*.tar.gz

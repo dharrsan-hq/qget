@@ -39,6 +39,16 @@ jobs:
       - name: Seed sweep (1,000 seeds per PR)
         run: QGET_SIM_SEEDS=1000 cargo test --release -p qget-core seed_sweep
 
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: brew install lz4 zstd
+      - run: scripts/ci-test.sh -p qget-core -p qget-runtime -p qget-http -p qget-extract
+      - run: cargo build -p qget-cli --features p2p
+
   msrv:
     runs-on: ubuntu-latest
     steps:

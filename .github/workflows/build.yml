@@ -26,31 +26,51 @@ jobs:
           - name: linux-aarch64
             os: ubuntu-24.04-arm
             features: ""
+          - name: macos-aarch64
+            os: macos-latest
+            features: ""
+          - name: macos-x86_64
+            os: macos-latest
+            features: ""
+            target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.name }}
       - name: Build
-        run: cargo build --release --locked -p qget-cli ${{ matrix.features }}
-      - name: Smoke test
+        shell: bash
         run: |
-          ./target/release/qget --version
-          ./target/release/qget man > qget.1
-          ./target/release/qget completions bash > qget.bash
-          ./target/release/qget completions zsh > _qget
-          ./target/release/qget completions fish > qget.fish
+          target_flag=""
+          [ -n "${{ matrix.target }}" ] && target_flag="--target ${{ matrix.target }}"
+          cargo build --release --locked -p qget-cli ${{ matrix.features }} $target_flag
+          bin=target/${{ matrix.target }}/release/qget
+          [ -f "$bin" ] || bin=target/release/qget
+          mkdir -p out && cp "$bin" out/qget
+          # Man page and completions come from a binary that runs on this runner.
+          gen=out/qget
+          if [ -n "${{ matrix.target }}" ]; then
+            cargo build --release --locked -p qget-cli ${{ matrix.features }}
+            gen=target/release/qget
+          fi
+          $gen --version
+          $gen man > out/qget.1
+          $gen completions bash > out/qget.bash
+          $gen completions zsh > out/_qget
+          $gen completions fish > out/qget.fish
+          file out/qget || true
       - name: Package
         shell: bash
         run: |
           dir=qget-${{ matrix.name }}
           mkdir -p $dir
-          cp target/release/qget qget.1 qget.bash _qget qget.fish README.md LICENSE $dir/
+          cp out/qget out/qget.1 out/qget.bash out/_qget out/qget.fish README.md LICENSE $dir/
           tar -czf $dir.tar.gz $dir
-          sha256sum $dir.tar.gz > $dir.tar.gz.sha256
-          ls -l target/release/qget
+          shasum -a 256 $dir.tar.gz > $dir.tar.gz.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: qget-${{ matrix.name }}

@@ -310,7 +310,7 @@ fn extract_inner<R: Read>(reader: R, opts: &TarOptions, pool: &Pool) -> Result<T
                     pool.flush(idx)?;
                     let mut f = open_nofollow(&target)
                         .map_err(|e| Error::io(format!("create {}", rel.display()), e))?;
-                    let _ = rustix::fs::fallocate(&f, rustix::fs::FallocateFlags::empty(), 0, size);
+                    crate::platform::reserve(&f, size);
                     let mut buf = vec![0u8; 1 << 20];
                     loop {
                         let n = entry.read(&mut buf).map_err(ext)?;

@@ -50,7 +50,8 @@ cargo install --git https://github.com/dharrsan-hq/qget qget-cli            # HT
 cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p     # + peer-to-peer
 ```
 
-An AUR `PKGBUILD` is in [packaging/aur](packaging/aur). Man page and shell
+Prebuilt binaries for Linux (x86_64, arm64) and macOS (Apple Silicon, Intel) are on the
+[releases page](https://github.com/dharrsan-hq/qget/releases). An AUR `PKGBUILD` is in [packaging/aur](packaging/aur). Man page and shell
 completions: `qget man`, `qget completions bash|zsh|fish`.
 
 ## Usage
