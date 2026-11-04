@@ -26,9 +26,6 @@ jobs:
           - name: linux-aarch64
             os: ubuntu-24.04-arm
             features: ""
-          - name: macos-aarch64
-            os: macos-latest
-            features: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +49,7 @@ jobs:
           mkdir -p $dir
           cp target/release/qget qget.1 qget.bash _qget qget.fish README.md LICENSE $dir/
           tar -czf $dir.tar.gz $dir
-          shasum -a 256 $dir.tar.gz > $dir.tar.gz.sha256
+          sha256sum $dir.tar.gz > $dir.tar.gz.sha256
           ls -l target/release/qget
       - uses: actions/upload-artifact@v4
         with:
