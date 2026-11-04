@@ -1,8 +1,19 @@
 # cargo-deny configuration (SEC-05).
 
+# Only the platforms qget ships binaries for (Linux).
+[graph]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+all-features = true
+
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # `paste` is unmaintained but is a compile-time proc macro reached only via
+    # iroh -> netwatch -> netlink-packet-core; no runtime code. Revisit when
+    # iroh's netlink dependency drops it.
+    { id = "RUSTSEC-2024-0436", reason = "build-time macro via iroh netlink; no runtime exposure" },
+]
 
 [licenses]
 version = 2
