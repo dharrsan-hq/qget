@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — unreleased (see docs/release-notes/v0.1.0.md)
 
 First feature-complete version of the PRD's M0–M6 scope.
 

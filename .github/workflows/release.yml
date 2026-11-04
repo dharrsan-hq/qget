@@ -49,8 +49,38 @@ jobs:
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: qget-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.name }}
+          path: |
+            qget-*.tar.gz
+            qget-*.tar.gz.sha256
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+      - name: Combined checksums
+        run: cat qget-*.tar.gz.sha256 > SHA256SUMS && cat SHA256SUMS
+      - name: Release notes
+        run: |
+          notes=docs/release-notes/${GITHUB_REF_NAME}.md
+          if [[ ! -f $notes ]]; then
+            echo "::error::missing $notes"
+            exit 1
+          fi
       - uses: softprops/action-gh-release@v2
         with:
+          name: qget ${{ github.ref_name }}
+          body_path: docs/release-notes/${{ github.ref_name }}.md
+          # Tags like v0.1.0-alpha.1, or any 0.x release, are marked pre-release.
+          prerelease: ${{ contains(github.ref_name, '-') || startsWith(github.ref_name, 'v0.') }}
           files: |
             qget-*.tar.gz
             qget-*.tar.gz.sha256
+            SHA256SUMS
