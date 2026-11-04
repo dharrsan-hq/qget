@@ -226,7 +226,7 @@ fn build(
     if let Some(n) = a.max_connections.or(cfg.max_connections) {
         d = d.max_connections(n);
     }
-    d = d.polite(a.polite || cfg.polite.unwrap_or(false));
+    d = d.polite(a.polite || cfg.polite.unwrap_or(false)).hdd(a.hdd);
     if let Some(r) = a.limit_rate.as_ref().or(cfg.limit_rate.as_ref()) {
         d = d.limit_rate(parse_size(r).map_err(usage)?);
     }

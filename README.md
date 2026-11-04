@@ -41,7 +41,17 @@ See [bench/results](bench/results) for the raw numbers and
 [bench/bench.py](bench/bench.py) to reproduce them. Every output is verified by
 SHA-256; scenarios where qget does not win are reported too.
 
-<!-- BENCH-TABLE -->
+Loopback with emulated server limits (`bench/results/2026-11-04-1024m.md`) plus one real
+Cloudflare R2 download:
+
+| Scenario | qget | aria2c `-x16 -s16` | curl / wget |
+|---|---|---|---|
+| Download **and extract** 387 MiB `.tar.lz4`, 25 MB/s per connection | **4.8 s** | 7.9 s (then `tar`) | 16.4 s (`curl \| lz4 \| tar`) |
+| 1 GiB, 25 MB/s per connection | 4.1 s | **2.7 s** | 43 s |
+| 29 GiB from Cloudflare R2 | 584 MiB/s | **878 MiB/s** | — |
+
+Stream-extract wins clearly. For plain downloads aria2c is currently faster: qget's
+connection ramp-up and write-path fsyncs are the next things being fixed.
 
 ## Install
 
@@ -73,6 +83,7 @@ wget-compatible: `-O FILE` (`-` for stdout), `-P DIR`, `-c`, `-q`, `-i FILE`,
 | `--mirror URL` | another source of the same bytes (needs a checksum or identical ETags) |
 | `-n N` / `--max-connections N` | fixed / maximum connections (default: adaptive, max 16) |
 | `--polite` | at most 4 connections, no duplicate requests |
+| `--hdd` | output is on a spinning disk: larger blocks, at most 8 connections |
 | `--refresh-cmd CMD` | command printing a fresh URL when a signed URL expires |
 | `--restart` | discard a partial download instead of resuming |
 | `--explain` | bottleneck analysis and scheduler statistics |

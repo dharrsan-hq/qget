@@ -107,6 +107,7 @@ pub struct Download {
     verify_after: bool,
     refresh_cmd: Option<String>,
     content_disposition: bool,
+    hdd: bool,
     extract_threads: Option<usize>,
     allow_special: bool,
     into_existing: bool,
@@ -139,6 +140,7 @@ impl Download {
             verify_after: false,
             refresh_cmd: None,
             content_disposition: false,
+            hdd: false,
             extract_threads: None,
             allow_special: false,
             into_existing: false,
@@ -282,6 +284,11 @@ impl Download {
         self.content_disposition = v;
         self
     }
+    /// Tune for a spinning disk: larger blocks, at most 8 connections.
+    pub fn hdd(mut self, v: bool) -> Self {
+        self.hdd = v;
+        self
+    }
     pub fn extract_threads(mut self, n: usize) -> Self {
         self.extract_threads = Some(n.max(1));
         self
@@ -402,14 +409,17 @@ impl Download {
         }
         cfg.initial_conns = cfg.initial_conns.min(cfg.max_conns);
         cfg.hedge = !self.polite;
-        if let Some(p) = &file_path
-            && qget_runtime::fsutil::is_rotational(p)
-        {
-            // HDDs: fewer, larger sequential writes (§10.5).
+        // Spinning disks: fewer, larger sequential writes (§10.5). Opt-in,
+        // because virtual and cloud disks commonly report rotational=1.
+        if self.hdd {
             cfg.min_block = 16 * MIB;
             cfg.initial_block = 32 * MIB;
             cfg.max_conns = cfg.max_conns.min(8);
             cfg.initial_conns = cfg.initial_conns.min(cfg.max_conns);
+        } else if let Some(p) = &file_path
+            && qget_runtime::fsutil::is_rotational(p)
+        {
+            tracing::debug!("output disk reports rotational; pass --hdd for HDD tuning");
         }
 
         let mut notes = Vec::new();

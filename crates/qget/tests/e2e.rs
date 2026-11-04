@@ -143,10 +143,13 @@ async fn resumes_after_cancel() {
         .unwrap();
     assert_eq!(std::fs::read(&out).unwrap(), data);
     assert!(rep.resumed_bytes > 0, "nothing resumed");
+    // Only missing bytes are fetched again, plus at most the hedge budget.
     let second = srv.stats.body_bytes.load(Ordering::SeqCst) - before;
+    let missing = data.len() as u64 - rep.resumed_bytes;
     assert!(
-        second < data.len() as u64,
-        "re-downloaded everything ({second})"
+        second <= missing + rep.stats.hedged_bytes + (1 << 20),
+        "fetched {second} bytes, but only {missing} were missing ({:?})",
+        rep.stats
     );
     assert!(matches!(
         rep.resume,

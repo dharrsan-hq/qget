@@ -158,6 +158,10 @@ pub struct GetArgs {
     #[arg(long)]
     pub polite: bool,
 
+    /// Output is on a spinning disk: larger blocks, at most 8 connections.
+    #[arg(long)]
+    pub hdd: bool,
+
     /// Limit the total download rate, e.g. 500k, 10M.
     #[arg(long, value_name = "RATE")]
     pub limit_rate: Option<String>,
