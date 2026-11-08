@@ -139,17 +139,6 @@ h2 { font-size: clamp(28px, 3.6vw, 38px); letter-spacing: -0.02em; margin: 0 0 1
 .tag { position: absolute; top: 18px; right: 18px; font: 600 11px var(--mono); color: var(--accent-ink); background: var(--accent);
   padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
 
-/* rust */
-.rust-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; }
-.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.fact { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
-.fact b { display: block; font: 700 26px var(--mono); color: var(--accent); letter-spacing: -0.02em; }
-.fact span { font-size: 14px; color: var(--muted); }
-.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-.checks li { display: flex; gap: 12px; color: var(--muted); }
-.checks li::before { content: "▸"; color: var(--accent); font-weight: 700; }
-.checks b { color: var(--fg); }
-
 /* install tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 12px; width: fit-content; margin-bottom: 20px; }
@@ -210,13 +199,12 @@ footer .sp { flex: 1; }
 footer a { color: var(--muted); }
 
 @media (max-width: 860px) {
-  .rust-grid, .duo { grid-template-columns: 1fr; }
+  .duo { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   nav .links a.hide-sm { display: none; }
   .brand small { display: none; }
   .hero { padding-top: 52px; }
-  .facts { grid-template-columns: 1fr 1fr; }
   .row { grid-template-columns: 1fr 64px; } .row .n { grid-column: 1 / -1; margin-bottom: -6px; }
 }
 </style>
@@ -236,7 +224,6 @@ footer a { color: var(--muted); }
     <div class="links">
       <a href="#install">Install</a>
       <a class="hide-sm" href="#features">Features</a>
-      <a class="hide-sm" href="#rust">Rust</a>
       <a class="hide-sm" href="#benchmarks">Benchmarks</a>
       <a class="hide-sm" href="#contribute">Contribute</a>
       <a href="https://github.com/dharrsan-hq/qget">GitHub</a>
@@ -324,28 +311,6 @@ footer a { color: var(--muted); }
           <li>QUIC via <a href="https://www.iroh.computer">iroh</a>; plain URLs use parallel HTTP/1.1 (HTTP/2 optional)</li>
         </ul>
         <div class="eg"><span>$</span> qget yeet ./model.gguf &nbsp;→&nbsp; qget yoink 4217-maple-orbit-canyon</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="rust">
-  <div class="wrap">
-    <div class="kicker">Built in Rust</div>
-    <h2>Fast, and correct by design.</h2>
-    <div class="rust-grid">
-      <ul class="checks">
-        <li><span><b>Memory-safe Rust</b> end to end: no garbage collector and no runtime, just one small binary.</span></li>
-        <li><span><b>A deterministic scheduler</b>: a pure state machine with no I/O, so any download can be replayed decision by decision (<code class="i">--trace</code>, <code class="i">qget replay</code>).</span></li>
-        <li><span><b>Simulation-tested</b> against thousands of seeded fake networks with throttling, stalls and failures, plus 100,000 seeds nightly.</span></li>
-        <li><span><b>Crash-tested</b>: CI kills qget with <code class="i">SIGKILL</code> at random moments and requires a byte-exact result.</span></li>
-        <li><span><b>A library first</b>: the <code class="i">qget</code> crate powers the CLI and can be embedded in your own tools.</span></li>
-      </ul>
-      <div class="facts">
-        <div class="fact"><b>1</b><span>self-contained binary (~20 MB, P2P included)</span></div>
-        <div class="fact"><b>0</b><span>runtimes: needs only glibc + CA certificates</span></div>
-        <div class="fact"><b>130+</b><span>tests, including fault-injecting servers</span></div>
-        <div class="fact"><b>100k</b><span>simulated downloads every night</span></div>
       </div>
     </div>
   </div>
@@ -444,7 +409,7 @@ footer a { color: var(--muted); }
       <button class="copy" data-copy="fp">Copy</button>
     </div>
     <div class="links-row">
-      <a class="pill" href="/key.asc">Public key</a>
+      <a class="pill" href="key.asc">Public key</a>
       <a class="pill" href="https://github.com/dharrsan-hq/qget/releases/latest">Releases &amp; SHA256SUMS</a>
       <a class="pill" href="https://github.com/dharrsan-hq/qget/attestations">Build provenance</a>
       <a class="pill" href="https://github.com/dharrsan-hq/qget">Source code</a>
@@ -474,7 +439,7 @@ footer a { color: var(--muted); }
       </div>
       <div class="box me-card">
         <div class="me-row">
-          <img class="photo" src="/author.jpg" alt="Dharrsan Amarnath" width="76" height="76">
+          <img class="photo" src="author.jpg" alt="Dharrsan Amarnath" width="76" height="76">
           <div><b>Dharrsan Amarnath</b><span>Infrastructure / SRE engineer · author of qget</span></div>
         </div>
         <p>Built qget after one too many 300 GB snapshot downloads that broke at 90%, and a few too many "just use <code class="i">curl | tar</code>" afternoons.</p>
