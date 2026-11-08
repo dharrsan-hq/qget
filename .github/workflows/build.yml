@@ -17,29 +17,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Every release binary includes peer-to-peer (yeet/yoink/mailbox).
           - name: linux-x86_64
-            os: ubuntu-latest
-            features: ""
-          - name: linux-x86_64-p2p
             os: ubuntu-latest
             features: "--features p2p"
           - name: linux-aarch64
             os: ubuntu-24.04-arm
-            features: ""
-          - name: linux-aarch64-p2p
-            os: ubuntu-24.04-arm
             features: "--features p2p"
           - name: macos-aarch64
             os: macos-latest
-            features: ""
-          - name: macos-aarch64-p2p
-            os: macos-latest
             features: "--features p2p"
           - name: macos-x86_64
-            os: macos-latest
-            features: ""
-            target: x86_64-apple-darwin
-          - name: macos-x86_64-p2p
             os: macos-latest
             features: "--features p2p"
             target: x86_64-apple-darwin

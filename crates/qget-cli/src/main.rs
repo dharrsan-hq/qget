@@ -460,7 +460,7 @@ fn check_url(u: &str) -> Result<(), String> {
     if P2P.contains(&u) || u.starts_with("qget1") {
         return Err(format!(
             "{} needs peer-to-peer support, which this build of qget does not include. \
-Download a `-p2p` release binary or install with `cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p`.",
+Use a release binary from https://github.com/dharrsan-hq/qget/releases (all include it) or install with `cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p`.",
             if u.starts_with("qget1") {
                 "a qget1… ticket"
             } else {
