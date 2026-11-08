@@ -62,41 +62,51 @@ connection ramp-up and write-path fsyncs are the next things being fixed.
 
 ## Install
 
-**Any Linux or macOS**: downloads the right build, verifies its SHA-256, installs to `~/.local/bin` (no sudo):
+Signed repositories at **https://qget.dharrsan.com**. Add once; updates arrive with your normal system upgrades.
+
+**Debian / Ubuntu**
 
 ```sh
-curl -fsSL https://github.com/dharrsan-hq/qget/releases/latest/download/install.sh | sh
+sudo curl --create-dirs -fsSLo /etc/apt/keyrings/qget.asc https://qget.dharrsan.com/key.asc
+echo "deb [signed-by=/etc/apt/keyrings/qget.asc] https://qget.dharrsan.com/apt stable main" | sudo tee /etc/apt/sources.list.d/qget.list
+sudo apt update && sudo apt install qget
 ```
 
-Prefer to read it first? `curl -fsSLO …/install.sh && less install.sh && sh install.sh`.
-
-**Debian / Ubuntu** (download the `.deb` for your architecture from the [latest release](https://github.com/dharrsan-hq/qget/releases)):
+**Fedora / RHEL 9+**
 
 ```sh
-sudo apt install ./qget_0.2.0-1_amd64.deb
-```
-
-**Fedora / RHEL**
-
-```sh
-sudo dnf install ./qget-0.2.0-1.x86_64.rpm
+sudo curl -fsSLo /etc/yum.repos.d/qget.repo https://qget.dharrsan.com/rpm/qget.repo
+sudo dnf install qget
 ```
 
 **Arch / CachyOS / Manjaro**
 
 ```sh
-sudo pacman -U ./qget-0.2.0-1-x86_64.pkg.tar.zst
+curl -fsSL https://qget.dharrsan.com/key.asc | sudo pacman-key --add /dev/stdin
+sudo pacman-key --lsign-key A03F3628DC0F7B4A2E9AE313AB43FFC72673B3AA
+printf '\n[qget]\nServer = https://qget.dharrsan.com/arch/$arch\n' | sudo tee -a /etc/pacman.conf
+sudo pacman -Syu qget
 ```
 
-**From source**
+**macOS, or any Linux without root**: verifies the SHA-256 and installs to `~/.local/bin`:
 
 ```sh
-cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p
+curl -fsSL https://qget.dharrsan.com/install.sh | sh
 ```
 
-Every release archive and package includes peer-to-peer, the man page (`man qget`) and bash/zsh/fish completions.
-Linux packages are tested on every release by installing and using them on Debian 12, Ubuntu 22.04 and 24.04, Fedora and Arch (x86_64; Debian and Fedora also on arm64). They need glibc 2.34 or newer.
-Verify downloads with `SHA256SUMS` or `gh attestation verify <file> -R dharrsan-hq/qget`.
+**From source**: `cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p`
+
+Packages and repository indexes are signed with the qget key (Ed25519):
+
+```
+A03F 3628 DC0F 7B4A 2E9A  E313 AB43 FFC7 2673 B3AA
+```
+
+Check that this fingerprint matches what your package manager shows. The same fingerprint is published on
+the website and at [keys.openpgp.org](https://keys.openpgp.org/search?q=A03F3628DC0F7B4A2E9AE313AB43FFC72673B3AA).
+`.deb`, `.rpm` and `.pkg.tar.zst` files are also attached to every [release](https://github.com/dharrsan-hq/qget/releases).
+Every package includes peer-to-peer, the man page and bash/zsh/fish completions, and is install-tested on
+Debian 12, Ubuntu 22.04/24.04, Fedora and Arch before each release (Linux packages need glibc 2.34+).
 
 ## Usage
 

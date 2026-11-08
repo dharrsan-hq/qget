@@ -331,7 +331,7 @@ footer a { color: var(--muted); }
 
     <div class="panel on" id="tab-deb" role="tabpanel">
       <ol class="steps">
-        <li><div class="cmd"><span class="p">$</span><code id="deb1">sudo curl -fsSLo /etc/apt/keyrings/qget.asc https://qget.dharrsan.com/key.asc</code><button class="copy" data-copy="deb1">Copy</button></div>
+        <li><div class="cmd"><span class="p">$</span><code id="deb1">sudo curl --create-dirs -fsSLo /etc/apt/keyrings/qget.asc https://qget.dharrsan.com/key.asc</code><button class="copy" data-copy="deb1">Copy</button></div>
           <p>Saves the qget signing key where apt looks for repository keys.</p></li>
         <li><div class="cmd"><span class="p">$</span><code id="deb2">echo "deb [signed-by=/etc/apt/keyrings/qget.asc] https://qget.dharrsan.com/apt stable main" | sudo tee /etc/apt/sources.list.d/qget.list</code><button class="copy" data-copy="deb2">Copy</button></div>
           <p>Adds the repository and only accepts packages signed by that key.</p></li>
@@ -351,7 +351,7 @@ footer a { color: var(--muted); }
 
     <div class="panel" id="tab-arch" role="tabpanel">
       <ol class="steps">
-        <li><div class="cmd"><span class="p">$</span><code id="arch1">curl -fsSL https://qget.dharrsan.com/key.asc | sudo pacman-key --add -</code><button class="copy" data-copy="arch1">Copy</button></div>
+        <li><div class="cmd"><span class="p">$</span><code id="arch1">curl -fsSL https://qget.dharrsan.com/key.asc | sudo pacman-key --add /dev/stdin</code><button class="copy" data-copy="arch1">Copy</button></div>
           <p>Adds the qget signing key to pacman's keyring.</p></li>
         <li><div class="cmd"><span class="p">$</span><code id="arch2">sudo pacman-key --lsign-key {{FINGERPRINT}}</code><button class="copy" data-copy="arch2">Copy</button></div>
           <p>Marks the key as trusted for packages.</p></li>

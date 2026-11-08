@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.2.0 — unreleased (see docs/release-notes/v0.2.0.md)
+## 0.3.0 — unreleased (see docs/release-notes/v0.3.0.md)
+
+- Signed package repositories at https://qget.dharrsan.com: apt (Debian/Ubuntu), dnf (Fedora/RHEL 9+), pacman (Arch). Updates through normal system upgrades.
+- Packages and repository indexes signed with the qget Ed25519 key A03F3628DC0F7B4A2E9AE313AB43FFC72673B3AA; CI refuses to sign with any other key.
+- Website qget.dharrsan.com with install instructions, benchmarks and verification details.
+- Every release is installed from the live repositories on Debian, Ubuntu, Fedora and Arch before it is considered done.
+- AGENTS.md for contributors and their AI assistants; contact details for feedback.
+
+## 0.2.0 — 2026-11-08 (see docs/release-notes/v0.2.0.md)
 
 - Linux packages on every release: `.deb`, `.rpm` and Arch `.pkg.tar.zst` (x86_64 and arm64), with man page and completions.
 - `install.sh`: one-line installer for Linux and macOS with SHA-256 verification, no sudo.
