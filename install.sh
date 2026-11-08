@@ -30,10 +30,11 @@ need() { command -v "$1" >/dev/null 2>&1 || die "'$1' is required"; }
 need uname; need tar; need mkdir
 if command -v curl >/dev/null 2>&1; then
   fetch() { curl -fsSL "$1" -o "$2"; }
-  fetch_stdout() { curl -fsSL "$1"; }
+  # Where a URL finally redirects to.
+  final_url() { curl -fsSLI -o /dev/null -w '%{url_effective}' "$1"; }
 elif command -v wget >/dev/null 2>&1; then
   fetch() { wget -q "$1" -O "$2"; }
-  fetch_stdout() { wget -q "$1" -O -; }
+  final_url() { wget -q -S --max-redirect=0 -O /dev/null "$1" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tail -n 1 | tr -d '\r'; }
 else
   die "curl or wget is required"
 fi
@@ -50,10 +51,14 @@ case "$(uname -m)" in
 esac
 
 if [ -z "$VERSION" ]; then
-  # Newest release, including 0.x pre-releases.
-  VERSION=$(fetch_stdout "https://api.github.com/repos/$REPO/releases?per_page=1" \
-    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
-  [ -n "$VERSION" ] || die "could not determine the latest release"
+  # github.com/<repo>/releases/latest redirects to …/releases/tag/<version>.
+  # (Unlike the GitHub API, this has no per-IP rate limit.)
+  latest=$(final_url "https://github.com/$REPO/releases/latest") || true
+  VERSION="${latest##*/tag/}"
+  case "$latest" in
+    */tag/v*) ;;
+    *) die "could not determine the latest release (got '${latest:-nothing}'); pass --version vX.Y.Z" ;;
+  esac
 fi
 
 name="qget-$VERSION-$os-$arch"
