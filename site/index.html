@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qget: download and extract at the same time</title>
+<meta name="description" content="Fast, verified, resumable downloads with archives extracted while they download. Signed packages for Debian, Ubuntu, Fedora and Arch.">
+<meta property="og:title" content="qget: download and extract at the same time">
+<meta property="og:description" content="Parallel, verified, resumable downloads. Archives unpacked while they arrive, with no second copy on disk.">
+<meta property="og:url" content="https://qget.dharrsan.com/">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0e14'/%3E%3Cpath d='M16 7v12m0 0-5-5m5 5 5-5M9 24h14' stroke='%232dd4bf' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #0b0e14; --bg-2: #11151e; --bg-3: #171c27; --line: #232a38;
+  --fg: #e6e8ee; --muted: #9aa3b2; --dim: #6b7486;
+  --accent: #2dd4bf; --accent-2: #5eead4; --accent-ink: #042f2a;
+  --warn: #fbbf24; --ok: #34d399;
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fbfcfd; --bg-2: #f2f4f7; --bg-3: #e9edf2; --line: #dde2ea;
+    --fg: #0f141c; --muted: #4d5666; --dim: #7a8392;
+    --accent: #0d9488; --accent-2: #0f766e; --accent-ink: #ffffff;
+  }
+  .term { --bg-3: #0f141c; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, kbd { font-family: var(--mono); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+/* nav */
+nav { position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(160%) blur(10px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 18px var(--mono); color: var(--fg); }
+.brand:hover { text-decoration: none; }
+.logo { width: 26px; height: 26px; }
+nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 15px; }
+nav .links a { color: var(--muted); }
+nav .links a:hover { color: var(--fg); text-decoration: none; }
+
+/* hero */
+.hero { padding: 88px 0 56px; position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: -40% -10% auto; height: 560px; pointer-events: none;
+  background: radial-gradient(600px 300px at 30% 30%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); }
+.badge { display: inline-flex; gap: 8px; align-items: center; font: 500 13px var(--mono); color: var(--muted);
+  border: 1px solid var(--line); background: var(--bg-2); padding: 5px 12px; border-radius: 999px; }
+.badge b { color: var(--accent); font-weight: 600; }
+h1 { font-size: clamp(40px, 6.4vw, 72px); line-height: 1.04; letter-spacing: -0.035em; margin: 22px 0 18px; font-weight: 800; }
+h1 .grad { background: linear-gradient(92deg, var(--accent) 0%, #60a5fa 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); max-width: 640px; margin: 0 0 32px; }
+
+/* copyable command */
+.cmd { display: flex; align-items: center; gap: 12px; max-width: 680px; background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 12px 12px 18px; font: 15px var(--mono); }
+.cmd .p { color: var(--accent); user-select: none; }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: thin; }
+.copy { flex: none; cursor: pointer; border: 1px solid var(--line); background: var(--bg-3); color: var(--muted);
+  font: 500 13px var(--sans); padding: 6px 12px; border-radius: 8px; transition: .15s; }
+.copy:hover { color: var(--fg); border-color: var(--accent); }
+.copy.done { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.sub { margin-top: 12px; font-size: 14px; color: var(--dim); }
+
+/* terminal */
+.term { margin-top: 48px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-3);
+  box-shadow: 0 30px 80px -30px rgb(0 0 0 / .6); overflow: hidden; font: 14px/1.7 var(--mono); color: #d6dae3; }
+.term .bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #ffffff12; }
+.term .bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+.term .bar i:nth-child(2) { background: #febc2e; } .term .bar i:nth-child(3) { background: #28c840; }
+.term .bar span { margin-left: 10px; color: #7d8596; font-size: 12px; }
+.term pre { margin: 0; padding: 18px 22px 22px; overflow-x: auto; }
+.t-p { color: #2dd4bf; } .t-d { color: #7d8596; } .t-ok { color: #34d399; } .t-a { color: #5eead4; }
+.type { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0;
+  animation: type 1.8s steps(61, end) .3s forwards; }
+.line { opacity: 0; animation: show .01s forwards; }
+.l2 { animation-delay: 2.1s; } .l3 { animation-delay: 2.5s; } .l4 { animation-delay: 6.4s; } .l5 { animation-delay: 6.8s; }
+.prog { display: inline-block; width: 22ch; height: 1em; vertical-align: -2px; background: #ffffff14; border-radius: 3px; overflow: hidden; }
+.prog::after { content: ""; display: block; height: 100%; width: 0; background: linear-gradient(90deg, #14b8a6, #5eead4);
+  animation: fill 3.8s cubic-bezier(.3,.1,.2,1) 2.6s forwards; }
+.cnt::after { content: "0.0 GiB/30.0 GiB"; animation: cnt 3.8s steps(1) 2.6s forwards; }
+@keyframes type { to { width: 61ch; } }
+@keyframes show { to { opacity: 1; } }
+@keyframes fill { to { width: 100%; } }
+@keyframes cnt { 0% { content: "0.0 GiB/30.0 GiB"; } 20% { content: "6.1 GiB/30.0 GiB"; } 40% { content: "12.4 GiB/30.0 GiB"; }
+  60% { content: "18.3 GiB/30.0 GiB"; } 80% { content: "24.6 GiB/30.0 GiB"; } 100% { content: "30.0 GiB/30.0 GiB"; } }
+@media (prefers-reduced-motion: reduce) {
+  .type { width: 61ch; animation: none; } .line { opacity: 1; animation: none; }
+  .prog::after { width: 100%; animation: none; } .cnt::after { content: "30.0 GiB/30.0 GiB"; animation: none; }
+}
+
+/* sections */
+section { padding: 72px 0; border-top: 1px solid var(--line); }
+h2 { font-size: clamp(28px, 3.6vw, 38px); letter-spacing: -0.02em; margin: 0 0 10px; }
+.kicker { font: 600 13px var(--mono); color: var(--accent); text-transform: uppercase; letter-spacing: .12em; }
+.intro { color: var(--muted); max-width: 680px; margin: 0 0 32px; }
+
+/* install tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 12px; width: fit-content; margin-bottom: 20px; }
+.tabs button { cursor: pointer; border: 0; background: none; color: var(--muted); font: 500 15px var(--sans);
+  padding: 8px 16px; border-radius: 8px; }
+.tabs button[aria-selected="true"] { background: var(--bg-3); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+.panel { display: none; } .panel.on { display: block; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; max-width: 860px; }
+.steps li { min-width: 0; }
+.steps li .cmd { max-width: none; }
+.steps li p { margin: 6px 2px 0; font-size: 14px; color: var(--dim); }
+.note { margin-top: 18px; font-size: 14px; color: var(--muted); max-width: 860px; }
+.note code { font-size: 13px; background: var(--bg-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; }
+
+/* features */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; transition: .2s; }
+.card:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); transform: translateY(-2px); }
+.card .ic { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; margin-bottom: 14px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+/* benchmarks */
+.bench { display: grid; gap: 30px; max-width: 860px; }
+.bench h3 { margin: 0 0 12px; font-size: 16px; color: var(--muted); font-weight: 600; }
+.row { display: grid; grid-template-columns: 210px 1fr 72px; gap: 14px; align-items: center; margin: 9px 0; font-size: 14px; }
+.row .n { font-family: var(--mono); color: var(--muted); }
+.row .b { height: 26px; background: var(--bg-2); border-radius: 7px; overflow: hidden; border: 1px solid var(--line); }
+.row .b i { display: block; height: 100%; background: var(--dim); opacity: .55; border-radius: 6px; }
+.row.me .n { color: var(--fg); font-weight: 600; } .row.me .b i { background: linear-gradient(90deg, #14b8a6, #5eead4); opacity: 1; }
+.row .v { font-family: var(--mono); text-align: right; }
+.fine { font-size: 13px; color: var(--dim); max-width: 860px; margin-top: 18px; }
+
+/* verify */
+.fp { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 18px 20px; max-width: 860px; }
+.fp .lbl { font-size: 14px; color: var(--muted); }
+.fp code { font-size: clamp(14px, 2vw, 17px); color: var(--fg); letter-spacing: .04em; flex: 1; min-width: 260px; }
+.links-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.pill { border: 1px solid var(--line); background: var(--bg-2); color: var(--fg); padding: 8px 14px; border-radius: 999px; font-size: 14px; }
+.pill:hover { border-color: var(--accent); text-decoration: none; }
+
+/* author */
+.author { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 24px; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 24px; max-width: 860px; }
+.avatar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font: 700 20px var(--sans);
+  color: var(--accent-ink); background: linear-gradient(135deg, var(--accent), #60a5fa); }
+.author .who { flex: 1; min-width: 220px; }
+.author .who b { font-size: 18px; } .author .who p { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
+  border: 1px solid var(--line); color: var(--fg); background: var(--bg-3); }
+.btn:hover { border-color: var(--accent); text-decoration: none; }
+.btn svg { width: 16px; height: 16px; }
+
+footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--dim); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+footer .sp { flex: 1; }
+footer a { color: var(--muted); }
+
+@media (max-width: 640px) {
+  nav .links a.hide-sm { display: none; }
+  .hero { padding-top: 56px; }
+  .row { grid-template-columns: 1fr 64px; } .row .n { grid-column: 1 / -1; margin-bottom: -6px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--bg-3)" stroke="var(--line)"/><path d="M16 7v12m0 0-5-5m5 5 5-5M9 24h14" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      qget
+    </a>
+    <div class="links">
+      <a href="#install">Install</a>
+      <a class="hide-sm" href="#why">Why</a>
+      <a class="hide-sm" href="#benchmarks">Benchmarks</a>
+      <a class="hide-sm" href="#verify">Verify</a>
+      <a href="https://github.com/dharrsan-hq/qget">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="badge">v<b>{{VERSION}}</b> · Linux &amp; macOS · Apache-2.0</span>
+    <h1>Download and extract.<br><span class="grad">At the same time.</span></h1>
+    <p class="lede">Parallel, verified, resumable downloads. Archives are unpacked while they arrive, so there's no second copy on disk and no waiting for extraction.</p>
+    <div class="cmd">
+      <span class="p">$</span><code id="hero-cmd">curl -fsSL https://qget.dharrsan.com/install.sh | sh</code>
+      <button class="copy" data-copy="hero-cmd">Copy</button>
+    </div>
+    <p class="sub">Installs to <code>~/.local/bin</code> without sudo and checks the SHA-256. Prefer your package manager? <a href="#install">See below</a>.</p>
+
+    <div class="term" role="img" aria-label="Terminal: qget downloading and extracting a 30 GiB snapshot in 51 seconds">
+      <div class="bar"><i></i><i></i><i></i><span>~/node</span></div>
+<pre><span class="t-p">$ </span><span class="type">qget -x /data/node https://snapshots.example.com/node.tar.lz4</span>
+<span class="line l2"><span class="t-d">  checksum   sha256 found at node.tar.lz4.sha256</span></span>
+<span class="line l3"><span class="t-a">⠹</span> <span class="prog"></span> <span class="cnt"></span>  <span class="t-d">612 MiB/s · 16 conns · parallel LZ4</span></span>
+<span class="line l4"><span class="t-ok">✓</span> 30.0 GiB → /data/node in 51s · 18,442 files · <span class="t-ok">verified</span> sha256:9f2c…e41a</span>
+<span class="line l5"><span class="t-p">$ </span><span class="t-d">█</span></span></pre>
+    </div>
+  </div>
+</header>
+
+<section id="install">
+  <div class="wrap">
+    <div class="kicker">Install</div>
+    <h2>One command away.</h2>
+    <p class="intro">Signed packages for the major Linux distributions. Add the repository once, and updates arrive with your normal system upgrades.</p>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="deb">Debian / Ubuntu</button>
+      <button role="tab" aria-selected="false" data-tab="rpm">Fedora / RHEL</button>
+      <button role="tab" aria-selected="false" data-tab="arch">Arch / CachyOS</button>
+      <button role="tab" aria-selected="false" data-tab="any">macOS / any</button>
+    </div>
+
+    <div class="panel on" id="tab-deb" role="tabpanel">
+      <ol class="steps">
+        <li><div class="cmd"><span class="p">$</span><code id="deb1">sudo curl -fsSLo /etc/apt/keyrings/qget.asc https://qget.dharrsan.com/key.asc</code><button class="copy" data-copy="deb1">Copy</button></div>
+          <p>Saves the qget signing key where apt looks for repository keys.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="deb2">echo "deb [signed-by=/etc/apt/keyrings/qget.asc] https://qget.dharrsan.com/apt stable main" | sudo tee /etc/apt/sources.list.d/qget.list</code><button class="copy" data-copy="deb2">Copy</button></div>
+          <p>Adds the repository and only accepts packages signed by that key.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="deb3">sudo apt update &amp;&amp; sudo apt install qget</code><button class="copy" data-copy="deb3">Copy</button></div>
+          <p>Installs qget. Future versions come with <code>apt upgrade</code>.</p></li>
+      </ol>
+    </div>
+
+    <div class="panel" id="tab-rpm" role="tabpanel">
+      <ol class="steps">
+        <li><div class="cmd"><span class="p">$</span><code id="rpm1">sudo curl -fsSLo /etc/yum.repos.d/qget.repo https://qget.dharrsan.com/rpm/qget.repo</code><button class="copy" data-copy="rpm1">Copy</button></div>
+          <p>Adds the repository definition, including where to fetch the signing key.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="rpm2">sudo dnf install qget</code><button class="copy" data-copy="rpm2">Copy</button></div>
+          <p>Installs qget. dnf asks you to confirm the key fingerprint once. Updates come with <code>dnf upgrade</code>.</p></li>
+      </ol>
+    </div>
+
+    <div class="panel" id="tab-arch" role="tabpanel">
+      <ol class="steps">
+        <li><div class="cmd"><span class="p">$</span><code id="arch1">curl -fsSL https://qget.dharrsan.com/key.asc | sudo pacman-key --add -</code><button class="copy" data-copy="arch1">Copy</button></div>
+          <p>Adds the qget signing key to pacman's keyring.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="arch2">sudo pacman-key --lsign-key {{FINGERPRINT}}</code><button class="copy" data-copy="arch2">Copy</button></div>
+          <p>Marks the key as trusted for packages.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="arch3">printf '\n[qget]\nServer = https://qget.dharrsan.com/arch/$arch\n' | sudo tee -a /etc/pacman.conf</code><button class="copy" data-copy="arch3">Copy</button></div>
+          <p>Adds the <code>[qget]</code> repository to pacman.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="arch4">sudo pacman -Syu qget</code><button class="copy" data-copy="arch4">Copy</button></div>
+          <p>Installs qget (<code>yay -S qget</code> works too). Updates come with <code>pacman -Syu</code>.</p></li>
+      </ol>
+    </div>
+
+    <div class="panel" id="tab-any" role="tabpanel">
+      <ol class="steps">
+        <li><div class="cmd"><span class="p">$</span><code id="any1">curl -fsSL https://qget.dharrsan.com/install.sh | sh</code><button class="copy" data-copy="any1">Copy</button></div>
+          <p>Detects your OS and CPU, verifies the SHA-256, and installs to <code>~/.local/bin</code> without sudo. Works on macOS (Apple Silicon and Intel) and any Linux with glibc 2.34+.</p></li>
+        <li><div class="cmd"><span class="p">$</span><code id="any2">cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p</code><button class="copy" data-copy="any2">Copy</button></div>
+          <p>Or build from source with Rust.</p></li>
+      </ol>
+    </div>
+
+    <p class="note">Every package includes peer-to-peer, the man page (<code>man qget</code>) and bash/zsh/fish completions. Packages are installed and tested on Debian 12, Ubuntu 22.04 &amp; 24.04, Fedora and Arch before each release.</p>
+  </div>
+</section>
+
+<section id="why">
+  <div class="wrap">
+    <div class="kicker">Why qget</div>
+    <h2>Built for big files that matter.</h2>
+    <p class="intro">Node snapshots, datasets, disk images: the downloads where a dropped connection or a corrupt byte costs you hours.</p>
+    <div class="grid">
+      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg></div>
+        <h3>Stream-extract</h3><p><code>.tar.lz4</code>, <code>.zst</code>, <code>.gz</code>, <code>.xz</code> unpacked while downloading, with parallel LZ4 and zstd decoding. Half the disk, no second step.</p></div>
+      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg></div>
+        <h3>Crash-safe resume</h3><p>Data is fsynced before it's journalled. Kill it with <code>kill -9</code>, reboot, re-run: byte-exact, every time.</p></div>
+      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Verified as it downloads</h3><p>SHA-256/512 or BLAKE3, <code>Repr-Digest</code>, <code>.sha256</code> files. Changed or corrupt files are caught, never installed.</p></div>
+      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="m8.6 10.6 6.8-3.2m-6.8 6 6.8 3.2"/></svg></div>
+        <h3>Peer-to-peer</h3><p><code>qget yeet</code> / <code>qget yoink</code> between machines over QUIC, through NATs, every MiB checked against a BLAKE3 root.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="benchmarks">
+  <div class="wrap">
+    <div class="kicker">Benchmarks</div>
+    <h2>Measured, not promised.</h2>
+    <p class="intro">Every output verified by SHA-256. Including the case where qget isn't the fastest yet.</p>
+    <div class="bench">
+      <div>
+        <h3>Download and extract a 387 MiB <code>.tar.lz4</code> (server caps each connection at 25 MB/s)</h3>
+        <div class="row me"><span class="n">qget -x</span><span class="b"><i style="width:29%"></i></span><span class="v">4.8 s</span></div>
+        <div class="row"><span class="n">aria2c -x16, then tar</span><span class="b"><i style="width:48%"></i></span><span class="v">7.9 s</span></div>
+        <div class="row"><span class="n">curl | lz4 -d | tar -x</span><span class="b"><i style="width:100%"></i></span><span class="v">16.4 s</span></div>
+      </div>
+      <div>
+        <h3>Plain download, 1 GiB (25 MB/s per connection)</h3>
+        <div class="row"><span class="n">aria2c -x16 -s16</span><span class="b"><i style="width:6.4%"></i></span><span class="v">2.7 s</span></div>
+        <div class="row me"><span class="n">qget</span><span class="b"><i style="width:9.6%"></i></span><span class="v">4.1 s</span></div>
+        <div class="row"><span class="n">curl / wget</span><span class="b"><i style="width:100%"></i></span><span class="v">43 s</span></div>
+      </div>
+    </div>
+    <p class="fine">Shorter is better. Loopback with server-side per-connection limits; 3 runs, median. For plain downloads aria2c is currently faster: qget's connection ramp-up is being tuned. Harness and raw results: <a href="https://github.com/dharrsan-hq/qget/tree/main/bench">bench/</a>.</p>
+  </div>
+</section>
+
+<section id="verify">
+  <div class="wrap">
+    <div class="kicker">Verify</div>
+    <h2>Trust the key, not the server.</h2>
+    <p class="intro">Every package and repository index is signed. Your package manager rejects anything not signed by this key, even if this website were compromised. Check the fingerprint against the README on GitHub or <a href="https://keys.openpgp.org/search?q={{FINGERPRINT}}">keys.openpgp.org</a>.</p>
+    <div class="fp">
+      <span class="lbl">Signing key (Ed25519)</span>
+      <code id="fp">{{FINGERPRINT_SPACED}}</code>
+      <button class="copy" data-copy="fp">Copy</button>
+    </div>
+    <div class="links-row">
+      <a class="pill" href="/key.asc">Public key</a>
+      <a class="pill" href="https://github.com/dharrsan-hq/qget/releases/latest">Releases &amp; SHA256SUMS</a>
+      <a class="pill" href="https://github.com/dharrsan-hq/qget/attestations">Build provenance</a>
+      <a class="pill" href="https://github.com/dharrsan-hq/qget">Source code</a>
+      <a class="pill" href="https://github.com/dharrsan-hq/qget/blob/main/SECURITY.md">Security policy</a>
+    </div>
+  </div>
+</section>
+
+<section id="author">
+  <div class="wrap">
+    <div class="kicker">Author</div>
+    <h2>Made by an infra engineer, for infra people.</h2>
+    <div class="author">
+      <div class="avatar" aria-hidden="true">DA</div>
+      <div class="who"><b>Dharrsan Amarnath</b><p>Infrastructure / SRE engineer. Built qget after one too many 300 GB snapshot downloads.</p></div>
+      <a class="btn" href="https://www.linkedin.com/in/dharrsan-amarnath-75017221a" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>
+        LinkedIn</a>
+      <a class="btn" href="https://github.com/dharrsan-hq" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.7-2.8 5.7-5.5 6 .4.3.8 1 .8 2v3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>
+        GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>qget v{{VERSION}} · Apache-2.0</span>
+    <span class="sp"></span>
+    <a href="https://github.com/dharrsan-hq/qget">GitHub</a>
+    <a href="https://github.com/dharrsan-hq/qget/releases">Releases</a>
+    <a href="https://github.com/dharrsan-hq/qget/blob/main/SECURITY.md">Security</a>
+    <a href="https://www.linkedin.com/in/dharrsan-amarnath-75017221a" rel="noopener">LinkedIn</a>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', async () => {
+  const text = document.getElementById(b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(text); } catch { return; }
+  const t = b.textContent; b.textContent = 'Copied'; b.classList.add('done');
+  setTimeout(() => { b.textContent = t; b.classList.remove('done'); }, 1400);
+}));
+const tabs = document.querySelectorAll('[role=tab]');
+function pick(name) {
+  tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'tab-' + name));
+}
+tabs.forEach(t => t.addEventListener('click', () => pick(t.dataset.tab)));
+const ua = navigator.userAgent;
+if (/Mac OS X/.test(ua) && !/Mobile/.test(ua)) pick('any');
+else if (/Fedora/i.test(ua)) pick('rpm');
+</script>
+</body>
+</html>
