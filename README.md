@@ -63,12 +63,6 @@ curl -fsSL https://github.com/dharrsan-hq/qget/releases/latest/download/install.
 
 Prefer to read it first? `curl -fsSLO …/install.sh && less install.sh && sh install.sh`.
 
-**macOS / Linux with Homebrew**
-
-```sh
-brew install dharrsan-hq/qget/qget
-```
-
 **Debian / Ubuntu** (download the `.deb` for your architecture from the [latest release](https://github.com/dharrsan-hq/qget/releases)):
 
 ```sh
@@ -94,7 +88,7 @@ cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p
 ```
 
 Every release archive and package includes peer-to-peer, the man page (`man qget`) and bash/zsh/fish completions.
-Linux packages need glibc 2.35 or newer (Debian 12+, Ubuntu 22.04+, Fedora 36+, current Arch).
+Linux packages are tested on every release by installing and using them on Debian 12, Ubuntu 22.04 and 24.04, Fedora and Arch (x86_64; Debian and Fedora also on arm64). They need glibc 2.34 or newer.
 Verify downloads with `SHA256SUMS` or `gh attestation verify <file> -R dharrsan-hq/qget`.
 
 ## Usage

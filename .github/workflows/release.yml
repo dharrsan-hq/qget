@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag like v0.2.0 to build binaries and Linux packages, publish a
-# GitHub release, and update the Homebrew tap.
+# Push a tag like v0.2.0 to build binaries and Linux packages, test the
+# packages on Debian, Ubuntu, Fedora and Arch, then publish a GitHub release.
 on:
   push:
     tags: ["v*"]
@@ -86,13 +86,6 @@ jobs:
           for f in *; do shasum -a 256 "$f" > "$f.sha256"; done
           ls -l
           mv * ..
-      - name: Check the .deb installs and runs
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get install -y ./qget_*.deb
-          qget --version
-          man -w qget
-          sudo apt-get remove -y qget
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
@@ -110,8 +103,37 @@ jobs:
             qget*.pkg.tar.zst
             *.sha256
 
-  publish:
+  distro-test:
+    # Install each package on real distro images and use it (HTTPS download,
+    # verified stream-extract), then uninstall. See packaging/test/distro-smoke.sh.
     needs: build
+    name: ${{ matrix.image }} (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "debian:12", kind: deb, arch: x86_64, runner: ubuntu-latest }
+          - { image: "ubuntu:22.04", kind: deb, arch: x86_64, runner: ubuntu-latest }
+          - { image: "ubuntu:24.04", kind: deb, arch: x86_64, runner: ubuntu-latest }
+          - { image: "fedora:latest", kind: rpm, arch: x86_64, runner: ubuntu-latest }
+          - { image: "archlinux:latest", kind: arch, arch: x86_64, runner: ubuntu-latest }
+          - { image: "debian:12", kind: deb, arch: aarch64, runner: ubuntu-24.04-arm }
+          - { image: "fedora:latest", kind: rpm, arch: aarch64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-linux-${{ matrix.arch }}
+          path: art
+      - name: Install, use, remove
+        run: |
+          ls -l art/.
+          docker run --rm -v "$PWD/art/.:/pkgs:ro" -v "$PWD/packaging/test:/t:ro" \
+            ${{ matrix.image }} sh /t/distro-smoke.sh ${{ matrix.kind }}
+
+  publish:
+    needs: [build, distro-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -146,54 +168,3 @@ jobs:
             *.sha256
             SHA256SUMS
             install.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sha256sums
-          path: SHA256SUMS
-
-  homebrew:
-    # Updates dharrsan-hq/homebrew-qget. Needs the HOMEBREW_TAP_TOKEN secret
-    # (fine-grained token, Contents: read/write on that repository only).
-    needs: publish
-    runs-on: ubuntu-latest
-    env:
-      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
-        with:
-          name: sha256sums
-      - name: Update formula
-        run: |
-          if [ -z "$TAP_TOKEN" ]; then
-            echo "::warning::HOMEBREW_TAP_TOKEN is not set; skipping the Homebrew tap update"
-            exit 0
-          fi
-          scripts/homebrew-formula.sh "$GITHUB_REF_NAME" SHA256SUMS > qget.rb
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/dharrsan-hq/homebrew-qget.git" tap
-          mkdir -p tap/Formula
-          cp qget.rb tap/Formula/qget.rb
-          cd tap
-          git config user.name "qget release bot"
-          git config user.email "dharrsan.subscriptions@gmail.com"
-          git add Formula/qget.rb
-          git diff --cached --quiet && { echo "formula unchanged"; exit 0; }
-          git commit -m "qget ${GITHUB_REF_NAME}"
-          git push origin HEAD
-
-  homebrew-test:
-    # Install from the tap on a real Mac and run the formula's test block.
-    needs: homebrew
-    runs-on: macos-latest
-    env:
-      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-    steps:
-      - name: brew install + test
-        run: |
-          if [ -z "$TAP_TOKEN" ]; then
-            echo "::warning::tap not updated; skipping"
-            exit 0
-          fi
-          brew install dharrsan-hq/qget/qget
-          brew test dharrsan-hq/qget/qget
-          qget --version

@@ -92,13 +92,6 @@ jobs:
           export QGET_VERSION="$(out/qget --version | cut -d' ' -f2)" QGET_ARCH="${{ matrix.deb_arch }}"
           for p in deb rpm archlinux; do ./nfpm package -f packaging/nfpm.yaml -p $p -t pkgs/; done
           ls -l pkgs
-      - name: Check the .deb installs and runs
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get install -y ./pkgs/qget_*.deb
-          qget --version
-          man -w qget
-          sudo apt-get remove -y qget
       - uses: actions/upload-artifact@v4
         with:
           name: qget-${{ matrix.name }}
@@ -107,3 +100,32 @@ jobs:
             qget-${{ matrix.name }}.tar.gz.sha256
             pkgs/*
           retention-days: 30
+
+  distro-test:
+    # Install each package on real distro images and use it (HTTPS download,
+    # verified stream-extract), then uninstall. See packaging/test/distro-smoke.sh.
+    needs: build
+    name: ${{ matrix.image }} (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "debian:12", kind: deb, arch: x86_64, runner: ubuntu-latest }
+          - { image: "ubuntu:22.04", kind: deb, arch: x86_64, runner: ubuntu-latest }
+          - { image: "ubuntu:24.04", kind: deb, arch: x86_64, runner: ubuntu-latest }
+          - { image: "fedora:latest", kind: rpm, arch: x86_64, runner: ubuntu-latest }
+          - { image: "archlinux:latest", kind: arch, arch: x86_64, runner: ubuntu-latest }
+          - { image: "debian:12", kind: deb, arch: aarch64, runner: ubuntu-24.04-arm }
+          - { image: "fedora:latest", kind: rpm, arch: aarch64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: qget-linux-${{ matrix.arch }}
+          path: art
+      - name: Install, use, remove
+        run: |
+          ls -l art/pkgs
+          docker run --rm -v "$PWD/art/pkgs:/pkgs:ro" -v "$PWD/packaging/test:/t:ro" \
+            ${{ matrix.image }} sh /t/distro-smoke.sh ${{ matrix.kind }}

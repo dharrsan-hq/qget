@@ -4,8 +4,8 @@
 
 - Linux packages on every release: `.deb`, `.rpm` and Arch `.pkg.tar.zst` (x86_64 and arm64), with man page and completions.
 - `install.sh`: one-line installer for Linux and macOS with SHA-256 verification, no sudo.
-- Homebrew tap: `brew install dharrsan-hq/qget/qget`, updated automatically on each release.
-- Linux binaries are built against glibc 2.35 (Debian 12+, Ubuntu 22.04+, Fedora 36+).
+- Packages are installed and used on Debian 12, Ubuntu 22.04/24.04, Fedora and Arch in CI before every release; they depend on `ca-certificates`.
+- Linux binaries are built on Ubuntu 22.04 and need glibc 2.34+.
 
 ## 0.1.1 — 2026-11-08 (see docs/release-notes/v0.1.1.md)
 

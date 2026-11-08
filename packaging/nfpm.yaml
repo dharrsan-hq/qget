@@ -21,18 +21,22 @@ vendor: qget
 homepage: https://github.com/dharrsan-hq/qget
 license: Apache-2.0
 
-# Built on glibc 2.35 (Ubuntu 22.04): Debian 12+, Ubuntu 22.04+, Fedora 36+, Arch.
+# Built on Ubuntu 22.04; the binary needs glibc 2.34+ (Debian 12+, Ubuntu 22.04+, Fedora 35+, Arch).
+# TLS uses the system certificate store, so CA certificates are required.
 overrides:
   deb:
     depends:
       - libc6 (>= 2.35)
+      - ca-certificates
   rpm:
     depends:
       - glibc >= 2.35
+      - ca-certificates
   archlinux:
     depends:
       - glibc
       - gcc-libs
+      - ca-certificates
 
 contents:
   - src: dist/qget
