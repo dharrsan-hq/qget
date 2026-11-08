@@ -24,14 +24,10 @@ class Qget < Formula
   license "Apache-2.0"
 
   on_macos do
-    on_arm do
-      url "$base/qget-$tag-macos-aarch64.tar.gz"
-      sha256 "$(sha macos-aarch64)"
-    end
-    on_intel do
-      url "$base/qget-$tag-macos-x86_64.tar.gz"
-      sha256 "$(sha macos-x86_64)"
-    end
+    # Apple Silicon only; Intel Macs can build from source with cargo.
+    depends_on arch: :arm64
+    url "$base/qget-$tag-macos-aarch64.tar.gz"
+    sha256 "$(sha macos-aarch64)"
   end
 
   on_linux do

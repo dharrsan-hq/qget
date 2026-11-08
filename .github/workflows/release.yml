@@ -43,9 +43,6 @@ jobs:
             nfpm_arch: arm64
           - name: macos-aarch64
             os: macos-latest
-          - name: macos-x86_64
-            os: macos-latest
-            target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5

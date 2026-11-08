@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.3.0 — unreleased (see docs/release-notes/v0.3.0.md)
+## Unreleased
+
+- Dropped the macOS Intel (x86_64) build; macOS binaries are Apple Silicon only. `install.sh` explains how to build from source on Intel Macs.
+
+## 0.3.0 — 2026-11-08 (see docs/release-notes/v0.3.0.md)
 
 - Signed package repositories at https://qget.dharrsan.com: apt (Debian/Ubuntu), dnf (Fedora/RHEL 9+), pacman (Arch). Updates through normal system upgrades.
 - Packages and repository indexes signed with the qget Ed25519 key A03F3628DC0F7B4A2E9AE313AB43FFC72673B3AA; CI refuses to sign with any other key.

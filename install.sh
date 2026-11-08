@@ -61,6 +61,10 @@ if [ -z "$VERSION" ]; then
   esac
 fi
 
+if [ "$os-$arch" = "macos-x86_64" ]; then
+  die "there is no prebuilt qget for Intel Macs; build it with: cargo install --git https://github.com/$REPO qget-cli -F p2p"
+fi
+
 name="qget-$VERSION-$os-$arch"
 base="https://github.com/$REPO/releases/download/$VERSION"
 tmp=$(mktemp -d 2>/dev/null || mktemp -d -t qget)
