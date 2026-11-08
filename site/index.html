@@ -168,7 +168,9 @@ code.i { font-size: 13px; background: var(--bg-2); border: 1px solid var(--line)
 .fp { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 18px 20px; max-width: 860px; }
 .fp .lbl { font-size: 14px; color: var(--muted); }
-.fp code { font-size: clamp(14px, 2vw, 17px); color: var(--fg); letter-spacing: .04em; flex: 1; min-width: 260px; }
+.fp code { font-size: clamp(14px, 2vw, 17px); color: var(--fg); letter-spacing: .04em; flex: 1; min-width: 260px; overflow-wrap: anywhere; }
+/* Scanners need dark modules on a light background, whatever the page theme. */
+.qr { background: #fff; border-radius: 8px; padding: 6px; image-rendering: pixelated; }
 .links-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .pill { border: 1px solid var(--line); background: var(--bg-2); color: var(--fg); padding: 8px 14px; border-radius: 999px; font-size: 14px; }
 .pill:hover { border-color: var(--accent); text-decoration: none; }
@@ -226,6 +228,7 @@ footer a { color: var(--muted); }
       <a class="hide-sm" href="#features">Features</a>
       <a class="hide-sm" href="#benchmarks">Benchmarks</a>
       <a class="hide-sm" href="#contribute">Contribute</a>
+      <a class="hide-sm" href="#support">Support</a>
       <a href="https://github.com/dharrsan-hq/qget">GitHub</a>
     </div>
   </div>
@@ -450,6 +453,23 @@ footer a { color: var(--muted); }
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.7-2.8 5.7-5.5 6 .4.3.8 1 .8 2v3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>GitHub</a>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="support">
+  <div class="wrap">
+    <div class="kicker">Support</div>
+    <h2>Saved you a re-download? Tips welcome.</h2>
+    <p class="intro">qget is free and stays free. If you'd like to support it, send USDC or USDT (preferred), ETH or any other ERC-20 token to this address <b>on Ethereum mainnet</b>. Paste it into your own wallet and check it there before sending; transfers can't be reversed.</p>
+    <div class="fp">
+      <img class="qr" src="tip-qr.svg" alt="QR code of the Ethereum address" width="132" height="132">
+      <span class="lbl">Ethereum address</span>
+      <code id="tip">0x102806FEF3C6f31Cf125A0Cb3F6865b61288Ef67</code>
+      <button class="copy" data-copy="tip">Copy</button>
+    </div>
+    <div class="links-row">
+      <a class="pill" href="https://etherscan.io/address/0x102806FEF3C6f31Cf125A0Cb3F6865b61288Ef67" rel="noopener">View on Etherscan</a>
     </div>
   </div>
 </section>

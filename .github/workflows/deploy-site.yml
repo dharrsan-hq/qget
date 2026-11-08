@@ -1,0 +1,87 @@
+name: Deploy site
+
+# Rebuild qget.dharrsan.com from the published releases, without cutting a new one.
+# Use this for website and documentation changes; releases deploy the site themselves.
+#
+# Pages serves the site *and* the apt/dnf/pacman repositories from a single upload,
+# so this rebuilds and re-signs the repositories too. Deploying the site alone would
+# delete them and break `apt install qget` for everyone.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One manual deploy at a time. Don't run this while a release is publishing:
+# whichever finishes last wins, and an older run would undo the newer one.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  repositories:
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      # Pinned: CI refuses to sign with any other key.
+      SIGNING_KEY: A03F3628DC0F7B4A2E9AE313AB43FFC72673B3AA
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Import signing key
+        env:
+          KEY: ${{ secrets.PACKAGE_SIGNING_KEY }}
+          PASSPHRASE: ${{ secrets.PACKAGE_SIGNING_PASSPHRASE }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$PASSPHRASE" ]; then
+            echo "::error::PACKAGE_SIGNING_KEY and PACKAGE_SIGNING_PASSPHRASE must be set in the 'release' environment"
+            exit 1
+          fi
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s\n' "$KEY" | gpg --batch --import 2>&1 | grep -v "^gpg: key" || true
+          gpg --batch --list-secret-keys --with-colons | grep -q "^fpr:::::::::$SIGNING_KEY:" \
+            || { echo "::error::the secret key is not $SIGNING_KEY"; exit 1; }
+          printf '%s' "$PASSPHRASE" > "$RUNNER_TEMP/pass" && chmod 600 "$RUNNER_TEMP/pass"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "SIGNING_PASSPHRASE_FILE=$RUNNER_TEMP/pass" >> "$GITHUB_ENV"
+          # Prove the passphrase works before building anything.
+          echo test | gpg --batch --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/pass" -u "$SIGNING_KEY" --clearsign >/dev/null
+      - name: Collect packages (the three newest releases)
+        run: |
+          mkdir -p pkgs
+          latest=""
+          for tag in $(gh release list --exclude-drafts --limit 10 --json tagName -q '.[].tagName' | head -n 3); do
+            [ -n "$latest" ] || latest="$tag"
+            gh release download "$tag" -D pkgs -p 'qget_*.deb' -p 'qget-*.rpm' -p 'qget-*.pkg.tar.zst' --skip-existing 2>/dev/null \
+              || echo "no packages in $tag"
+          done
+          ls -l pkgs
+          [ -n "$latest" ] || { echo "::error::no published releases to build repositories from"; exit 1; }
+          echo "LATEST_VERSION=${latest#v}" >> "$GITHUB_ENV"
+      - name: Build signed repositories
+        run: packaging/repo/build-repos.sh pkgs _site https://qget.dharrsan.com
+      - name: Build site
+        run: |
+          scripts/build-site.sh "$LATEST_VERSION" _site
+          echo "qget.dharrsan.com" > _site/CNAME
+          find _site -maxdepth 3 | sort | head -50
+          du -sh _site
+      - name: Remove key material
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/pass"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy-site:
+    needs: repositories
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -20,6 +20,7 @@ sed -e "s/{{VERSION}}/$version/g" \
 cp "$key" "$out/key.asc"
 cp install.sh "$out/install.sh"
 cp site/author.jpg "$out/author.jpg"
+cp site/tip-qr.svg "$out/tip-qr.svg"
 if grep -q '{{' "$out/index.html"; then
   echo "unfilled placeholder in index.html" >&2
   exit 1
