@@ -49,6 +49,24 @@ jobs:
       - run: scripts/ci-test.sh -p qget-core -p qget-runtime -p qget-http -p qget-extract
       - run: cargo build -p qget-cli --features p2p
 
+  install-script:
+    # install.sh against the newest published release, under dash and on macOS.
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install with /bin/sh
+        run: |
+          sh install.sh --dir "$RUNNER_TEMP/bin"
+          "$RUNNER_TEMP/bin/qget" --version
+      - name: Install with dash
+        if: runner.os == 'Linux'
+        run: |
+          dash install.sh --dir "$RUNNER_TEMP/bin-dash"
+          "$RUNNER_TEMP/bin-dash/qget" --version
+
   msrv:
     runs-on: ubuntu-latest
     steps:

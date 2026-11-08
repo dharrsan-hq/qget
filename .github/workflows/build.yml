@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NFPM_VERSION: "2.48.0"
 
 jobs:
   build:
@@ -19,11 +20,15 @@ jobs:
         include:
           # Every release binary includes peer-to-peer (yeet/yoink/mailbox).
           - name: linux-x86_64
-            os: ubuntu-latest
+            os: ubuntu-22.04
             features: "--features p2p"
+            deb_arch: amd64
+            nfpm_arch: x86_64
           - name: linux-aarch64
-            os: ubuntu-24.04-arm
+            os: ubuntu-22.04-arm
             features: "--features p2p"
+            deb_arch: arm64
+            nfpm_arch: arm64
           - name: macos-aarch64
             os: macos-latest
             features: "--features p2p"
@@ -69,10 +74,29 @@ jobs:
           cp out/qget out/qget.1 out/qget.bash out/_qget out/qget.fish README.md LICENSE $dir/
           tar -czf $dir.tar.gz $dir
           shasum -a 256 $dir.tar.gz > $dir.tar.gz.sha256
+      - name: Linux packages (.deb, .rpm, .pkg.tar.zst)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -sSfL "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_${{ matrix.nfpm_arch }}.tar.gz" | tar xz nfpm
+          mkdir -p dist pkgs
+          cp out/qget out/qget.bash out/_qget out/qget.fish README.md LICENSE dist/
+          gzip -9n -c out/qget.1 > dist/qget.1.gz
+          export QGET_VERSION="$(out/qget --version | cut -d' ' -f2)" QGET_ARCH="${{ matrix.deb_arch }}"
+          for p in deb rpm archlinux; do ./nfpm package -f packaging/nfpm.yaml -p $p -t pkgs/; done
+          ls -l pkgs
+      - name: Check the .deb installs and runs
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./pkgs/qget_*.deb
+          qget --version
+          man -w qget
+          sudo apt-get remove -y qget
       - uses: actions/upload-artifact@v4
         with:
           name: qget-${{ matrix.name }}
           path: |
             qget-${{ matrix.name }}.tar.gz
             qget-${{ matrix.name }}.tar.gz.sha256
+            pkgs/*
           retention-days: 30

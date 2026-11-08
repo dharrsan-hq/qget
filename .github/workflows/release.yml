@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag like v0.1.0 to build binaries and attach them to a GitHub release.
+# Push a tag like v0.2.0 to build binaries and Linux packages, publish a
+# GitHub release, and update the Homebrew tap.
 on:
   push:
     tags: ["v*"]
@@ -12,6 +13,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  NFPM_VERSION: "2.48.0"
 
 jobs:
   build:
@@ -20,18 +22,20 @@ jobs:
       matrix:
         include:
           # Every release binary includes peer-to-peer (yeet/yoink/mailbox).
+          # Linux builds use Ubuntu 22.04 (glibc 2.35) so packages run on
+          # Debian 12+, Ubuntu 22.04+, Fedora 36+ and Arch.
           - name: linux-x86_64
-            os: ubuntu-latest
-            features: "--features p2p"
+            os: ubuntu-22.04
+            deb_arch: amd64
+            nfpm_arch: x86_64
           - name: linux-aarch64
-            os: ubuntu-24.04-arm
-            features: "--features p2p"
+            os: ubuntu-22.04-arm
+            deb_arch: arm64
+            nfpm_arch: arm64
           - name: macos-aarch64
             os: macos-latest
-            features: "--features p2p"
           - name: macos-x86_64
             os: macos-latest
-            features: "--features p2p"
             target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
@@ -44,14 +48,14 @@ jobs:
         run: |
           target_flag=""
           [ -n "${{ matrix.target }}" ] && target_flag="--target ${{ matrix.target }}"
-          cargo build --release --locked -p qget-cli ${{ matrix.features }} $target_flag
+          cargo build --release --locked -p qget-cli --features p2p $target_flag
           bin=target/${{ matrix.target }}/release/qget
           [ -f "$bin" ] || bin=target/release/qget
           mkdir -p out && cp "$bin" out/qget
           # Man page and completions come from a binary that runs on this runner.
           gen=out/qget
           if [ -n "${{ matrix.target }}" ]; then
-            cargo build --release --locked -p qget-cli ${{ matrix.features }}
+            cargo build --release --locked -p qget-cli --features p2p
             gen=target/release/qget
           fi
           $gen --version
@@ -59,8 +63,7 @@ jobs:
           $gen completions bash > out/qget.bash
           $gen completions zsh > out/_qget
           $gen completions fish > out/qget.fish
-          file out/qget || true
-      - name: Package
+      - name: Archive
         shell: bash
         run: |
           dir=qget-${GITHUB_REF_NAME}-${{ matrix.name }}
@@ -68,15 +71,44 @@ jobs:
           cp out/qget out/qget.1 out/qget.bash out/_qget out/qget.fish README.md LICENSE $dir/
           tar -czf $dir.tar.gz $dir
           shasum -a 256 $dir.tar.gz > $dir.tar.gz.sha256
+      - name: Linux packages (.deb, .rpm, .pkg.tar.zst)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -sSfL "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_${{ matrix.nfpm_arch }}.tar.gz" | tar xz nfpm
+          mkdir -p dist
+          cp out/qget out/qget.bash out/_qget out/qget.fish README.md LICENSE dist/
+          gzip -9n -c out/qget.1 > dist/qget.1.gz
+          export QGET_VERSION="${GITHUB_REF_NAME#v}" QGET_ARCH="${{ matrix.deb_arch }}"
+          mkdir -p pkgs
+          for p in deb rpm archlinux; do ./nfpm package -f packaging/nfpm.yaml -p $p -t pkgs/; done
+          cd pkgs
+          for f in *; do shasum -a 256 "$f" > "$f.sha256"; done
+          ls -l
+          mv * ..
+      - name: Check the .deb installs and runs
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./qget_*.deb
+          qget --version
+          man -w qget
+          sudo apt-get remove -y qget
       - uses: actions/attest-build-provenance@v2
         with:
-          subject-path: qget-*.tar.gz
+          subject-path: |
+            qget-*.tar.gz
+            qget*.deb
+            qget*.rpm
+            qget*.pkg.tar.zst
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.name }}
           path: |
             qget-*.tar.gz
-            qget-*.tar.gz.sha256
+            qget*.deb
+            qget*.rpm
+            qget*.pkg.tar.zst
+            *.sha256
 
   publish:
     needs: build
@@ -88,7 +120,10 @@ jobs:
           pattern: release-*
           merge-multiple: true
       - name: Combined checksums
-        run: cat qget-*.tar.gz.sha256 > SHA256SUMS && cat SHA256SUMS
+        run: |
+          sha256sum install.sh > install.sh.sha256
+          cat *.sha256 | sort -k2 > SHA256SUMS
+          cat SHA256SUMS
       - name: Release notes
         run: |
           notes=docs/release-notes/${GITHUB_REF_NAME}.md
@@ -100,9 +135,65 @@ jobs:
         with:
           name: qget ${{ github.ref_name }}
           body_path: docs/release-notes/${{ github.ref_name }}.md
-          # Tags like v0.1.0-alpha.1, or any 0.x release, are marked pre-release.
-          prerelease: ${{ contains(github.ref_name, '-') || startsWith(github.ref_name, 'v0.') }}
+          # Only tags like v0.3.0-rc.1 are pre-releases; others become "Latest",
+          # which the releases/latest/download/install.sh URL relies on.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             qget-*.tar.gz
-            qget-*.tar.gz.sha256
+            qget*.deb
+            qget*.rpm
+            qget*.pkg.tar.zst
+            *.sha256
             SHA256SUMS
+            install.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sha256sums
+          path: SHA256SUMS
+
+  homebrew:
+    # Updates dharrsan-hq/homebrew-qget. Needs the HOMEBREW_TAP_TOKEN secret
+    # (fine-grained token, Contents: read/write on that repository only).
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: sha256sums
+      - name: Update formula
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN is not set; skipping the Homebrew tap update"
+            exit 0
+          fi
+          scripts/homebrew-formula.sh "$GITHUB_REF_NAME" SHA256SUMS > qget.rb
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/dharrsan-hq/homebrew-qget.git" tap
+          mkdir -p tap/Formula
+          cp qget.rb tap/Formula/qget.rb
+          cd tap
+          git config user.name "qget release bot"
+          git config user.email "dharrsan.subscriptions@gmail.com"
+          git add Formula/qget.rb
+          git diff --cached --quiet && { echo "formula unchanged"; exit 0; }
+          git commit -m "qget ${GITHUB_REF_NAME}"
+          git push origin HEAD
+
+  homebrew-test:
+    # Install from the tap on a real Mac and run the formula's test block.
+    needs: homebrew
+    runs-on: macos-latest
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: brew install + test
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::warning::tap not updated; skipping"
+            exit 0
+          fi
+          brew install dharrsan-hq/qget/qget
+          brew test dharrsan-hq/qget/qget
+          qget --version

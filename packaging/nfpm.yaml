@@ -1,0 +1,95 @@
+# One description for the .deb, .rpm and Arch .pkg.tar.zst packages.
+# CI runs: nfpm package -f packaging/nfpm.yaml -p deb|rpm|archlinux
+# from a directory containing dist/ (qget, qget.1.gz, completions, LICENSE,
+# README.md), with QGET_VERSION and QGET_ARCH (amd64|arm64) set.
+name: qget
+arch: ${QGET_ARCH}
+platform: linux
+version: ${QGET_VERSION}
+version_schema: semver
+release: "1"
+section: net
+priority: optional
+maintainer: Dharrsan Amarnath <dharrsan.subscriptions@gmail.com>
+description: |
+  Fast, verified, resumable downloads with parallel stream-extraction.
+  qget downloads over many adaptive HTTP range connections, resumes safely
+  after crashes, verifies checksums while downloading, extracts
+  .tar.lz4/.tar.zst/.tar.gz/.tar.xz archives while they download, and sends
+  files peer-to-peer over QUIC.
+vendor: qget
+homepage: https://github.com/dharrsan-hq/qget
+license: Apache-2.0
+
+# Built on glibc 2.35 (Ubuntu 22.04): Debian 12+, Ubuntu 22.04+, Fedora 36+, Arch.
+overrides:
+  deb:
+    depends:
+      - libc6 (>= 2.35)
+  rpm:
+    depends:
+      - glibc >= 2.35
+  archlinux:
+    depends:
+      - glibc
+      - gcc-libs
+
+contents:
+  - src: dist/qget
+    dst: /usr/bin/qget
+    file_info:
+      mode: 0755
+
+  - src: dist/qget.1.gz
+    dst: /usr/share/man/man1/qget.1.gz
+    file_info:
+      mode: 0644
+
+  - src: dist/qget.bash
+    dst: /usr/share/bash-completion/completions/qget
+    file_info:
+      mode: 0644
+
+  - src: dist/qget.fish
+    dst: /usr/share/fish/vendor_completions.d/qget.fish
+    file_info:
+      mode: 0644
+
+  # zsh: Debian/Ubuntu read vendor-completions, Fedora and Arch site-functions.
+  - src: dist/_qget
+    dst: /usr/share/zsh/vendor-completions/_qget
+    packager: deb
+    file_info:
+      mode: 0644
+  - src: dist/_qget
+    dst: /usr/share/zsh/site-functions/_qget
+    packager: rpm
+    file_info:
+      mode: 0644
+  - src: dist/_qget
+    dst: /usr/share/zsh/site-functions/_qget
+    packager: archlinux
+    file_info:
+      mode: 0644
+
+  - src: dist/LICENSE
+    dst: /usr/share/doc/qget/copyright
+    packager: deb
+    file_info:
+      mode: 0644
+  - src: dist/LICENSE
+    dst: /usr/share/licenses/qget/LICENSE
+    packager: rpm
+    type: license
+    file_info:
+      mode: 0644
+  - src: dist/LICENSE
+    dst: /usr/share/licenses/qget/LICENSE
+    packager: archlinux
+    file_info:
+      mode: 0644
+
+  - src: dist/README.md
+    dst: /usr/share/doc/qget/README.md
+    file_info:
+      mode: 0644

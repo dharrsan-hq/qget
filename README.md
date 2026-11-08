@@ -55,14 +55,47 @@ connection ramp-up and write-path fsyncs are the next things being fixed.
 
 ## Install
 
+**Any Linux or macOS**: downloads the right build, verifies its SHA-256, installs to `~/.local/bin` (no sudo):
+
 ```sh
-cargo install --git https://github.com/dharrsan-hq/qget qget-cli            # HTTP + extract
-cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p     # + peer-to-peer
+curl -fsSL https://github.com/dharrsan-hq/qget/releases/latest/download/install.sh | sh
 ```
 
-Prebuilt binaries (all with peer-to-peer) for Linux (x86_64, arm64) and macOS (Apple Silicon, Intel) are on the
-[releases page](https://github.com/dharrsan-hq/qget/releases). An AUR `PKGBUILD` is in [packaging/aur](packaging/aur). Man page and shell
-completions: `qget man`, `qget completions bash|zsh|fish`.
+Prefer to read it first? `curl -fsSLO …/install.sh && less install.sh && sh install.sh`.
+
+**macOS / Linux with Homebrew**
+
+```sh
+brew install dharrsan-hq/qget/qget
+```
+
+**Debian / Ubuntu** (download the `.deb` for your architecture from the [latest release](https://github.com/dharrsan-hq/qget/releases)):
+
+```sh
+sudo apt install ./qget_0.2.0-1_amd64.deb
+```
+
+**Fedora / RHEL**
+
+```sh
+sudo dnf install ./qget-0.2.0-1.x86_64.rpm
+```
+
+**Arch / CachyOS / Manjaro**
+
+```sh
+sudo pacman -U ./qget-0.2.0-1-x86_64.pkg.tar.zst
+```
+
+**From source**
+
+```sh
+cargo install --git https://github.com/dharrsan-hq/qget qget-cli -F p2p
+```
+
+Every release archive and package includes peer-to-peer, the man page (`man qget`) and bash/zsh/fish completions.
+Linux packages need glibc 2.35 or newer (Debian 12+, Ubuntu 22.04+, Fedora 36+, current Arch).
+Verify downloads with `SHA256SUMS` or `gh attestation verify <file> -R dharrsan-hq/qget`.
 
 ## Usage
 
