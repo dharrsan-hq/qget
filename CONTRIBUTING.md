@@ -1,7 +1,14 @@
 # Contributing to qget
 
-Thanks for helping. The design is described in [PRD.md](PRD.md); please read
-§6 (design principles) and §9 (architecture) before larger changes.
+Thanks for helping. qget is **under active development**, and contributions **and criticism**
+are both welcome: open an [issue](https://github.com/dharrsan-hq/qget/issues), email
+**dharrsan.work@gmail.com**, or message on
+[LinkedIn](https://www.linkedin.com/in/dharrsan-amarnath-75017221a).
+
+The design is described in [PRD.md](PRD.md); please read §6 (design principles) and §9
+(architecture) before larger changes. [AGENTS.md](AGENTS.md) has the rules and commands in short
+form, and AI coding assistants pick it up automatically. AI-assisted pull requests are fine:
+say so in the description and make sure you understand every line.
 
 ## Layout
 

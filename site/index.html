@@ -3,30 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>qget: download and extract at the same time</title>
-<meta name="description" content="Fast, verified, resumable downloads with archives extracted while they download. Signed packages for Debian, Ubuntu, Fedora and Arch.">
-<meta property="og:title" content="qget: download and extract at the same time">
-<meta property="og:description" content="Parallel, verified, resumable downloads. Archives unpacked while they arrive, with no second copy on disk.">
+<title>qget: quickly get big files, over HTTP or peer-to-peer</title>
+<meta name="description" content="qget (quickly get) is a Rust downloader for big files: parallel HTTP, crash-safe resume, on-the-fly checksums, archives extracted while downloading with no 2× disk space, and peer-to-peer over QUIC.">
+<meta property="og:title" content="qget: quickly get big files">
+<meta property="og:description" content="Parallel, verified, resumable downloads, archives extracted as they arrive, and peer-to-peer over QUIC. Written in Rust.">
 <meta property="og:url" content="https://qget.dharrsan.com/">
+<meta property="og:image" content="https://qget.dharrsan.com/author.jpg">
 <meta name="color-scheme" content="dark light">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0e14'/%3E%3Cpath d='M16 7v12m0 0-5-5m5 5 5-5M9 24h14' stroke='%232dd4bf' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23110d0b'/%3E%3Cpath d='M16 7v12m0 0-5-5m5 5 5-5M9 24h14' stroke='%23f26b2a' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 :root {
-  --bg: #0b0e14; --bg-2: #11151e; --bg-3: #171c27; --line: #232a38;
-  --fg: #e6e8ee; --muted: #9aa3b2; --dim: #6b7486;
-  --accent: #2dd4bf; --accent-2: #5eead4; --accent-ink: #042f2a;
-  --warn: #fbbf24; --ok: #34d399;
+  --bg: #0d0b0a; --bg-2: #15110f; --bg-3: #1c1714; --line: #2b231e;
+  --fg: #f1ebe6; --muted: #b0a59c; --dim: #7c7168;
+  --accent: #f26b2a; --accent-2: #ff8f57; --hot: #e5383b; --accent-ink: #1a0b03;
+  --warn: #fbbf24; --ok: #4ade80;
   --mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
   --radius: 14px;
 }
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #fbfcfd; --bg-2: #f2f4f7; --bg-3: #e9edf2; --line: #dde2ea;
-    --fg: #0f141c; --muted: #4d5666; --dim: #7a8392;
-    --accent: #0d9488; --accent-2: #0f766e; --accent-ink: #ffffff;
+    --bg: #fdfbf9; --bg-2: #f6f1ed; --bg-3: #efe8e2; --line: #e4dad2;
+    --fg: #1b1410; --muted: #5c5048; --dim: #8a7d73;
+    --accent: #c2410c; --accent-2: #b4370a; --hot: #b91c1c; --accent-ink: #ffffff;
   }
-  .term { --bg-3: #0f141c; }
+  .term { --bg-3: #15110f; }
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -36,27 +37,40 @@ a:hover { text-decoration: underline; }
 code, pre, kbd { font-family: var(--mono); }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
+/* dev banner */
+.devbar { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, var(--bg)), color-mix(in srgb, var(--hot) 14%, var(--bg)));
+  border-bottom: 1px solid var(--line); font-size: 14px; color: var(--fg); }
+.devbar .wrap { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 8px 24px; text-align: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 25%, transparent); flex: none; }
+
 /* nav */
 nav { position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(160%) blur(10px);
   background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
 nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
 .brand { display: flex; align-items: center; gap: 10px; font: 700 18px var(--mono); color: var(--fg); }
 .brand:hover { text-decoration: none; }
+.brand small { font: 500 12px var(--mono); color: var(--dim); }
 .logo { width: 26px; height: 26px; }
 nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 15px; }
 nav .links a { color: var(--muted); }
 nav .links a:hover { color: var(--fg); text-decoration: none; }
 
 /* hero */
-.hero { padding: 88px 0 56px; position: relative; overflow: hidden; }
-.hero::before { content: ""; position: absolute; inset: -40% -10% auto; height: 560px; pointer-events: none;
-  background: radial-gradient(600px 300px at 30% 30%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); }
+.hero { padding: 80px 0 56px; position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: -40% -10% auto; height: 600px; pointer-events: none;
+  background: radial-gradient(620px 320px at 28% 30%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%),
+              radial-gradient(420px 260px at 78% 10%, color-mix(in srgb, var(--hot) 14%, transparent), transparent 70%); }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; }
 .badge { display: inline-flex; gap: 8px; align-items: center; font: 500 13px var(--mono); color: var(--muted);
   border: 1px solid var(--line); background: var(--bg-2); padding: 5px 12px; border-radius: 999px; }
 .badge b { color: var(--accent); font-weight: 600; }
-h1 { font-size: clamp(40px, 6.4vw, 72px); line-height: 1.04; letter-spacing: -0.035em; margin: 22px 0 18px; font-weight: 800; }
-h1 .grad { background: linear-gradient(92deg, var(--accent) 0%, #60a5fa 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); max-width: 640px; margin: 0 0 32px; }
+.badge.rust { color: var(--fg); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.badge.rust svg { width: 16px; height: 16px; color: var(--accent); }
+h1 { font-size: clamp(40px, 6.4vw, 74px); line-height: 1.03; letter-spacing: -0.035em; margin: 22px 0 18px; font-weight: 800; }
+h1 .grad { background: linear-gradient(92deg, var(--accent) 0%, var(--hot) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); max-width: 700px; margin: 0 0 30px; }
+.lede b { color: var(--fg); font-weight: 600; }
+.name { font-family: var(--mono); color: var(--fg); }
 
 /* copyable command */
 .cmd { display: flex; align-items: center; gap: 12px; max-width: 680px; background: var(--bg-2);
@@ -70,37 +84,71 @@ h1 .grad { background: linear-gradient(92deg, var(--accent) 0%, #60a5fa 100%); -
 .sub { margin-top: 12px; font-size: 14px; color: var(--dim); }
 
 /* terminal */
-.term { margin-top: 48px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-3);
-  box-shadow: 0 30px 80px -30px rgb(0 0 0 / .6); overflow: hidden; font: 14px/1.7 var(--mono); color: #d6dae3; }
+.term { margin-top: 46px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-3);
+  box-shadow: 0 30px 80px -30px rgb(0 0 0 / .65); overflow: hidden; font: 14px/1.75 var(--mono); color: #e7ded7; }
 .term .bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #ffffff12; }
 .term .bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
 .term .bar i:nth-child(2) { background: #febc2e; } .term .bar i:nth-child(3) { background: #28c840; }
-.term .bar span { margin-left: 10px; color: #7d8596; font-size: 12px; }
+.term .bar span { margin-left: 10px; color: #8a7f76; font-size: 12px; }
 .term pre { margin: 0; padding: 18px 22px 22px; overflow-x: auto; }
-.t-p { color: #2dd4bf; } .t-d { color: #7d8596; } .t-ok { color: #34d399; } .t-a { color: #5eead4; }
-.type { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0;
-  animation: type 1.8s steps(61, end) .3s forwards; }
+.t-p { color: #ff8f57; } .t-d { color: #8a7f76; } .t-ok { color: #4ade80; } .t-a { color: #ffb184; }
+.type { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0; }
+.ty1 { animation: ty1 1.7s steps(61, end) .3s forwards; }
+.ty2 { animation: ty2 1.0s steps(34, end) 6.6s forwards; }
 .line { opacity: 0; animation: show .01s forwards; }
-.l2 { animation-delay: 2.1s; } .l3 { animation-delay: 2.5s; } .l4 { animation-delay: 6.4s; } .l5 { animation-delay: 6.8s; }
+.l2 { animation-delay: 2.0s; } .l3 { animation-delay: 2.3s; } .l4 { animation-delay: 5.6s; } .l5 { animation-delay: 6.0s; }
+.l6 { animation-delay: 7.9s; } .l7 { animation-delay: 8.2s; } .l8 { animation-delay: 10.6s; } .l9 { animation-delay: 11s; }
 .prog { display: inline-block; width: 22ch; height: 1em; vertical-align: -2px; background: #ffffff14; border-radius: 3px; overflow: hidden; }
-.prog::after { content: ""; display: block; height: 100%; width: 0; background: linear-gradient(90deg, #14b8a6, #5eead4);
-  animation: fill 3.8s cubic-bezier(.3,.1,.2,1) 2.6s forwards; }
-.cnt::after { content: "0.0 GiB/30.0 GiB"; animation: cnt 3.8s steps(1) 2.6s forwards; }
-@keyframes type { to { width: 61ch; } }
+.prog::after { content: ""; display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e5383b, #ff8f57); }
+.p1::after { animation: fill 3.1s cubic-bezier(.3,.1,.2,1) 2.4s forwards; }
+.p2::after { animation: fill 2.2s cubic-bezier(.3,.1,.2,1) 8.3s forwards; }
+@keyframes ty1 { to { width: 61ch; } }
+@keyframes ty2 { to { width: 34ch; } }
 @keyframes show { to { opacity: 1; } }
 @keyframes fill { to { width: 100%; } }
-@keyframes cnt { 0% { content: "0.0 GiB/30.0 GiB"; } 20% { content: "6.1 GiB/30.0 GiB"; } 40% { content: "12.4 GiB/30.0 GiB"; }
-  60% { content: "18.3 GiB/30.0 GiB"; } 80% { content: "24.6 GiB/30.0 GiB"; } 100% { content: "30.0 GiB/30.0 GiB"; } }
 @media (prefers-reduced-motion: reduce) {
-  .type { width: 61ch; animation: none; } .line { opacity: 1; animation: none; }
-  .prog::after { width: 100%; animation: none; } .cnt::after { content: "30.0 GiB/30.0 GiB"; animation: none; }
+  .type { animation: none !important; } .ty1 { width: 61ch; } .ty2 { width: 34ch; }
+  .line { opacity: 1; animation: none; } .prog::after { width: 100%; animation: none !important; }
 }
+
+/* use cases */
+.uses { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.use { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted);
+  padding: 7px 14px; border: 1px dashed var(--line); border-radius: 999px; }
+.use b { color: var(--fg); font-weight: 600; }
 
 /* sections */
 section { padding: 72px 0; border-top: 1px solid var(--line); }
 h2 { font-size: clamp(28px, 3.6vw, 38px); letter-spacing: -0.02em; margin: 0 0 10px; }
 .kicker { font: 600 13px var(--mono); color: var(--accent); text-transform: uppercase; letter-spacing: .12em; }
-.intro { color: var(--muted); max-width: 680px; margin: 0 0 32px; }
+.intro { color: var(--muted); max-width: 700px; margin: 0 0 32px; }
+
+/* three ways */
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; }
+.way { position: relative; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+.way .num { font: 700 13px var(--mono); color: var(--accent); letter-spacing: .1em; }
+.way h3 { margin: 8px 0 8px; font-size: 21px; letter-spacing: -0.01em; }
+.way p { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+.way ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.way li { margin: 4px 0; }
+.way .eg { margin-top: 16px; font: 13px var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; color: var(--fg); overflow-x: auto; white-space: nowrap; }
+.way .eg span { color: var(--accent); }
+.way.hl { border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, var(--bg-2)), var(--bg-2)); }
+.tag { position: absolute; top: 18px; right: 18px; font: 600 11px var(--mono); color: var(--accent-ink); background: var(--accent);
+  padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
+
+/* rust */
+.rust-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.fact { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.fact b { display: block; font: 700 26px var(--mono); color: var(--accent); letter-spacing: -0.02em; }
+.fact span { font-size: 14px; color: var(--muted); }
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.checks li { display: flex; gap: 12px; color: var(--muted); }
+.checks li::before { content: "▸"; color: var(--accent); font-weight: 700; }
+.checks b { color: var(--fg); }
 
 /* install tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; background: var(--bg-2); border: 1px solid var(--line);
@@ -114,16 +162,7 @@ h2 { font-size: clamp(28px, 3.6vw, 38px); letter-spacing: -0.02em; margin: 0 0 1
 .steps li .cmd { max-width: none; }
 .steps li p { margin: 6px 2px 0; font-size: 14px; color: var(--dim); }
 .note { margin-top: 18px; font-size: 14px; color: var(--muted); max-width: 860px; }
-.note code { font-size: 13px; background: var(--bg-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; }
-
-/* features */
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-.card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; transition: .2s; }
-.card:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); transform: translateY(-2px); }
-.card .ic { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; margin-bottom: 14px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-.card h3 { margin: 0 0 6px; font-size: 18px; }
-.card p { margin: 0; color: var(--muted); font-size: 15px; }
+code.i { font-size: 13px; background: var(--bg-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; }
 
 /* benchmarks */
 .bench { display: grid; gap: 30px; max-width: 860px; }
@@ -131,8 +170,8 @@ h2 { font-size: clamp(28px, 3.6vw, 38px); letter-spacing: -0.02em; margin: 0 0 1
 .row { display: grid; grid-template-columns: 210px 1fr 72px; gap: 14px; align-items: center; margin: 9px 0; font-size: 14px; }
 .row .n { font-family: var(--mono); color: var(--muted); }
 .row .b { height: 26px; background: var(--bg-2); border-radius: 7px; overflow: hidden; border: 1px solid var(--line); }
-.row .b i { display: block; height: 100%; background: var(--dim); opacity: .55; border-radius: 6px; }
-.row.me .n { color: var(--fg); font-weight: 600; } .row.me .b i { background: linear-gradient(90deg, #14b8a6, #5eead4); opacity: 1; }
+.row .b i { display: block; height: 100%; background: var(--dim); opacity: .5; border-radius: 6px; }
+.row.me .n { color: var(--fg); font-weight: 600; } .row.me .b i { background: linear-gradient(90deg, var(--hot), var(--accent-2)); opacity: 1; }
 .row .v { font-family: var(--mono); text-align: right; }
 .fine { font-size: 13px; color: var(--dim); max-width: 860px; margin-top: 18px; }
 
@@ -145,43 +184,61 @@ h2 { font-size: clamp(28px, 3.6vw, 38px); letter-spacing: -0.02em; margin: 0 0 1
 .pill { border: 1px solid var(--line); background: var(--bg-2); color: var(--fg); padding: 8px 14px; border-radius: 999px; font-size: 14px; }
 .pill:hover { border-color: var(--accent); text-decoration: none; }
 
-/* author */
-.author { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 24px; background: var(--bg-2); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 24px; max-width: 860px; }
-.avatar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font: 700 20px var(--sans);
-  color: var(--accent-ink); background: linear-gradient(135deg, var(--accent), #60a5fa); }
-.author .who { flex: 1; min-width: 220px; }
-.author .who b { font-size: 18px; } .author .who p { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
-  border: 1px solid var(--line); color: var(--fg); background: var(--bg-3); }
+/* contribute + author */
+.duo { display: grid; grid-template-columns: 1.2fr 1fr; gap: 22px; }
+.box { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+.box h3 { margin: 0 0 8px; font-size: 20px; }
+.box p { color: var(--muted); margin: 0 0 16px; }
+.contact { display: grid; gap: 10px; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
+  border: 1px solid var(--line); color: var(--fg); background: var(--bg-3); width: fit-content; }
 .btn:hover { border-color: var(--accent); text-decoration: none; }
-.btn svg { width: 16px; height: 16px; }
+.btn svg { width: 17px; height: 17px; flex: none; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.me-card { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.me-row { display: flex; align-items: center; gap: 16px; }
+.photo { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; flex: none;
+  box-shadow: 0 0 0 3px var(--bg-2), 0 0 0 5px var(--accent); }
+.me-row b { font-size: 19px; display: block; }
+.me-row span { color: var(--muted); font-size: 14px; }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; }
 
 footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--dim); font-size: 14px; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
 footer .sp { flex: 1; }
 footer a { color: var(--muted); }
 
+@media (max-width: 860px) {
+  .rust-grid, .duo { grid-template-columns: 1fr; }
+}
 @media (max-width: 640px) {
   nav .links a.hide-sm { display: none; }
-  .hero { padding-top: 56px; }
+  .brand small { display: none; }
+  .hero { padding-top: 52px; }
+  .facts { grid-template-columns: 1fr 1fr; }
   .row { grid-template-columns: 1fr 64px; } .row .n { grid-column: 1 / -1; margin-bottom: -6px; }
 }
 </style>
 </head>
 <body>
 
+<div class="devbar"><div class="wrap"><span class="dot"></span>
+  <span><b>Under active development.</b> Expect rough edges, and tell us about them: <a href="#contribute">feedback and contributions welcome</a>.</span>
+</div></div>
+
 <nav>
   <div class="wrap">
     <a class="brand" href="#">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--bg-3)" stroke="var(--line)"/><path d="M16 7v12m0 0-5-5m5 5 5-5M9 24h14" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      qget
+      qget <small>quickly get</small>
     </a>
     <div class="links">
       <a href="#install">Install</a>
-      <a class="hide-sm" href="#why">Why</a>
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#rust">Rust</a>
       <a class="hide-sm" href="#benchmarks">Benchmarks</a>
-      <a class="hide-sm" href="#verify">Verify</a>
+      <a class="hide-sm" href="#contribute">Contribute</a>
       <a href="https://github.com/dharrsan-hq/qget">GitHub</a>
     </div>
   </div>
@@ -189,25 +246,110 @@ footer a { color: var(--muted); }
 
 <header class="hero">
   <div class="wrap">
-    <span class="badge">v<b>{{VERSION}}</b> · Linux &amp; macOS · Apache-2.0</span>
-    <h1>Download and extract.<br><span class="grad">At the same time.</span></h1>
-    <p class="lede">Parallel, verified, resumable downloads. Archives are unpacked while they arrive, so there's no second copy on disk and no waiting for extraction.</p>
+    <div class="badges">
+      <span class="badge rust"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5 13.6 4l2.1-.6.8 2 2.1.4v2.2l1.8 1.1-.8 2 1.2 1.8-1.6 1.5.5 2.1-2 .8-.4 2.1h-2.2l-1.1 1.8-2-.8-1.8 1.2-1.5-1.6-2.1.5-.8-2-2.1-.4v-2.2L2 15.3l.8-2-1.2-1.8 1.6-1.5-.5-2.1 2-.8.4-2.1h2.2L8.4 3.2l2 .8L12 2.5Zm0 4.2a5.3 5.3 0 1 0 0 10.6 5.3 5.3 0 0 0 0-10.6Z"/></svg>Written in Rust</span>
+      <span class="badge">v<b>{{VERSION}}</b> · Linux &amp; macOS · Apache-2.0</span>
+    </div>
+    <h1>Quickly get big files.<br><span class="grad">Over HTTP or peer-to-peer.</span></h1>
+    <p class="lede"><span class="name">qget</span> (<i>quickly get</i>) is a Rust downloader for the files that take hours: <b>AI model weights, blockchain node snapshots, datasets and disk images</b>.
+      It downloads over many parallel connections, survives crashes, verifies checksums as it goes, <b>extracts archives as they arrive with no 2× disk space</b>,
+      and sends files straight between machines over <b>QUIC</b>.</p>
     <div class="cmd">
       <span class="p">$</span><code id="hero-cmd">curl -fsSL https://qget.dharrsan.com/install.sh | sh</code>
       <button class="copy" data-copy="hero-cmd">Copy</button>
     </div>
-    <p class="sub">Installs to <code>~/.local/bin</code> without sudo and checks the SHA-256. Prefer your package manager? <a href="#install">See below</a>.</p>
+    <p class="sub">Installs to <code>~/.local/bin</code> without sudo and checks the SHA-256. Prefer your package manager? <a href="#install">Signed apt / dnf / pacman repos below</a>.</p>
 
-    <div class="term" role="img" aria-label="Terminal: qget downloading and extracting a 30 GiB snapshot in 51 seconds">
-      <div class="bar"><i></i><i></i><i></i><span>~/node</span></div>
-<pre><span class="t-p">$ </span><span class="type">qget -x /data/node https://snapshots.example.com/node.tar.lz4</span>
-<span class="line l2"><span class="t-d">  checksum   sha256 found at node.tar.lz4.sha256</span></span>
-<span class="line l3"><span class="t-a">⠹</span> <span class="prog"></span> <span class="cnt"></span>  <span class="t-d">612 MiB/s · 16 conns · parallel LZ4</span></span>
-<span class="line l4"><span class="t-ok">✓</span> 30.0 GiB → /data/node in 51s · 18,442 files · <span class="t-ok">verified</span> sha256:9f2c…e41a</span>
-<span class="line l5"><span class="t-p">$ </span><span class="t-d">█</span></span></pre>
+    <div class="term" role="img" aria-label="Terminal: qget extracts a 30 GiB snapshot while downloading, then receives an 8.5 GiB model file peer-to-peer">
+      <div class="bar"><i></i><i></i><i></i><span>~</span></div>
+<pre><span class="t-p">$ </span><span class="type ty1">qget -x /data/node https://snapshots.example.com/node.tar.zst</span>
+<span class="line l2"><span class="t-d">  sha256 found · parallel zstd · extracting while downloading</span></span>
+<span class="line l3"><span class="t-a">⠹</span> <span class="prog p1"></span> <span class="t-d">30.0 GiB · 612 MiB/s · 16 conns</span></span>
+<span class="line l4"><span class="t-ok">✓</span> 30.0 GiB → /data/node in 51s · no archive stored · <span class="t-ok">verified</span></span>
+<span class="line l5"><span class="t-p">$ </span><span class="type ty2">qget yoink 4217-maple-orbit-canyon</span></span>
+<span class="line l6"><span class="t-d">  peer found · direct QUIC (hole-punched) · verifying every MiB</span></span>
+<span class="line l7"><span class="t-a">⠼</span> <span class="prog p2"></span> <span class="t-d">llama-3.1-8b.Q8_0.gguf · 8.5 GiB</span></span>
+<span class="line l8"><span class="t-ok">✓</span> received 8.5 GiB in 23s · <span class="t-ok">blake3 verified</span></span>
+<span class="line l9"><span class="t-p">$ </span><span class="t-d">█</span></span></pre>
+    </div>
+
+    <div class="uses">
+      <span class="use">🤖 <b>AI models</b> GGUF, safetensors</span>
+      <span class="use">⛓️ <b>Node snapshots</b> .tar.lz4 / .tar.zst</span>
+      <span class="use">📊 <b>Datasets</b> multi-GB archives</span>
+      <span class="use">💿 <b>Images</b> ISOs, VM disks</span>
     </div>
   </div>
 </header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="kicker">Three ways to quickly get</div>
+    <h2>One binary. Every big download.</h2>
+    <p class="intro">Use one, or all three at once: a snapshot can come from an HTTP mirror and a peer simultaneously, every byte checked against the same hash.</p>
+    <div class="ways">
+      <div class="way">
+        <div class="num">01 · HTTP</div>
+        <h3>Parallel downloads that don't break</h3>
+        <p>Many adaptive range connections instead of one, so per-connection speed caps on CDNs, S3 and R2 stop mattering.</p>
+        <ul>
+          <li>Slow connections split or hedged automatically</li>
+          <li>Crash-safe resume: <code class="i">kill -9</code>, reboot, re-run</li>
+          <li>SHA-256/512 or BLAKE3 verified while downloading</li>
+          <li>Detects files that change mid-download</li>
+        </ul>
+        <div class="eg"><span>$</span> qget --checksum sha256:… https://huggingface.co/…/model.safetensors</div>
+      </div>
+      <div class="way hl">
+        <span class="tag">NO 2× DISK</span>
+        <div class="num">02 · STREAM-EXTRACT</div>
+        <h3>Download and extract at the same time</h3>
+        <p>Archives unpack as they arrive and are never stored, so you need room for the extracted data only, not archive <i>plus</i> data. It's ready the moment the download ends.</p>
+        <ul>
+          <li><code class="i">.tar</code> <code class="i">.lz4</code> <code class="i">.zst</code> <code class="i">.gz</code> <code class="i">.xz</code></li>
+          <li>Parallel LZ4 and zstd decoding</li>
+          <li>Installed only after the checksum matches</li>
+          <li>Safe against hostile archives</li>
+        </ul>
+        <div class="eg"><span>$</span> qget -x /data/node https://…/snapshot.tar.lz4</div>
+      </div>
+      <div class="way">
+        <div class="num">03 · PEER-TO-PEER</div>
+        <h3>Machine to machine over QUIC</h3>
+        <p>Send a file or folder directly, through home and office NATs with hole punching, and a relay only as a fallback. Short codes or tickets.</p>
+        <ul>
+          <li>Every MiB verified against a BLAKE3 root</li>
+          <li>Pull from several peers and HTTP mirrors at once</li>
+          <li>Resumable, encrypted end to end</li>
+          <li>QUIC via <a href="https://www.iroh.computer">iroh</a>; plain URLs use parallel HTTP/1.1 (HTTP/2 optional)</li>
+        </ul>
+        <div class="eg"><span>$</span> qget yeet ./model.gguf &nbsp;→&nbsp; qget yoink 4217-maple-orbit-canyon</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="rust">
+  <div class="wrap">
+    <div class="kicker">Built in Rust</div>
+    <h2>Fast, and correct by design.</h2>
+    <div class="rust-grid">
+      <ul class="checks">
+        <li><span><b>Memory-safe Rust</b> end to end: no garbage collector and no runtime, just one small binary.</span></li>
+        <li><span><b>A deterministic scheduler</b>: a pure state machine with no I/O, so any download can be replayed decision by decision (<code class="i">--trace</code>, <code class="i">qget replay</code>).</span></li>
+        <li><span><b>Simulation-tested</b> against thousands of seeded fake networks with throttling, stalls and failures, plus 100,000 seeds nightly.</span></li>
+        <li><span><b>Crash-tested</b>: CI kills qget with <code class="i">SIGKILL</code> at random moments and requires a byte-exact result.</span></li>
+        <li><span><b>A library first</b>: the <code class="i">qget</code> crate powers the CLI and can be embedded in your own tools.</span></li>
+      </ul>
+      <div class="facts">
+        <div class="fact"><b>1</b><span>self-contained binary (~20 MB, P2P included)</span></div>
+        <div class="fact"><b>0</b><span>runtimes: needs only glibc + CA certificates</span></div>
+        <div class="fact"><b>130+</b><span>tests, including fault-injecting servers</span></div>
+        <div class="fact"><b>100k</b><span>simulated downloads every night</span></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section id="install">
   <div class="wrap">
@@ -264,25 +406,7 @@ footer a { color: var(--muted); }
       </ol>
     </div>
 
-    <p class="note">Every package includes peer-to-peer, the man page (<code>man qget</code>) and bash/zsh/fish completions. Packages are installed and tested on Debian 12, Ubuntu 22.04 &amp; 24.04, Fedora and Arch before each release.</p>
-  </div>
-</section>
-
-<section id="why">
-  <div class="wrap">
-    <div class="kicker">Why qget</div>
-    <h2>Built for big files that matter.</h2>
-    <p class="intro">Node snapshots, datasets, disk images: the downloads where a dropped connection or a corrupt byte costs you hours.</p>
-    <div class="grid">
-      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg></div>
-        <h3>Stream-extract</h3><p><code>.tar.lz4</code>, <code>.zst</code>, <code>.gz</code>, <code>.xz</code> unpacked while downloading, with parallel LZ4 and zstd decoding. Half the disk, no second step.</p></div>
-      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg></div>
-        <h3>Crash-safe resume</h3><p>Data is fsynced before it's journalled. Kill it with <code>kill -9</code>, reboot, re-run: byte-exact, every time.</p></div>
-      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
-        <h3>Verified as it downloads</h3><p>SHA-256/512 or BLAKE3, <code>Repr-Digest</code>, <code>.sha256</code> files. Changed or corrupt files are caught, never installed.</p></div>
-      <div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="m8.6 10.6 6.8-3.2m-6.8 6 6.8 3.2"/></svg></div>
-        <h3>Peer-to-peer</h3><p><code>qget yeet</code> / <code>qget yoink</code> between machines over QUIC, through NATs, every MiB checked against a BLAKE3 root.</p></div>
-    </div>
+    <p class="note">Every package includes peer-to-peer, the man page (<code class="i">man qget</code>) and bash/zsh/fish completions. Packages are installed and tested on Debian 12, Ubuntu 22.04 &amp; 24.04, Fedora and Arch before each release.</p>
   </div>
 </section>
 
@@ -305,7 +429,7 @@ footer a { color: var(--muted); }
         <div class="row"><span class="n">curl / wget</span><span class="b"><i style="width:100%"></i></span><span class="v">43 s</span></div>
       </div>
     </div>
-    <p class="fine">Shorter is better. Loopback with server-side per-connection limits; 3 runs, median. For plain downloads aria2c is currently faster: qget's connection ramp-up is being tuned. Harness and raw results: <a href="https://github.com/dharrsan-hq/qget/tree/main/bench">bench/</a>.</p>
+    <p class="fine">Shorter is better. Loopback with server-side per-connection limits; 3 runs, median. For plain downloads aria2c is currently faster, and qget's connection ramp-up is being tuned. Harness and raw results: <a href="https://github.com/dharrsan-hq/qget/tree/main/bench">bench/</a>.</p>
   </div>
 </section>
 
@@ -329,30 +453,50 @@ footer a { color: var(--muted); }
   </div>
 </section>
 
-<section id="author">
+<section id="contribute">
   <div class="wrap">
-    <div class="kicker">Author</div>
-    <h2>Made by an infra engineer, for infra people.</h2>
-    <div class="author">
-      <div class="avatar" aria-hidden="true">DA</div>
-      <div class="who"><b>Dharrsan Amarnath</b><p>Infrastructure / SRE engineer. Built qget after one too many 300 GB snapshot downloads.</p></div>
-      <a class="btn" href="https://www.linkedin.com/in/dharrsan-amarnath-75017221a" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>
-        LinkedIn</a>
-      <a class="btn" href="https://github.com/dharrsan-hq" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.7-2.8 5.7-5.5 6 .4.3.8 1 .8 2v3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>
-        GitHub</a>
+    <div class="kicker">Contribute</div>
+    <h2>Open to contributions, and to criticism.</h2>
+    <p class="intro">qget is young and under active development. Bug reports, benchmarks from your network, design critique and pull requests are all welcome. Blunt feedback is the most useful kind.</p>
+    <div class="duo">
+      <div class="box">
+        <h3>Get in touch</h3>
+        <p>Found a bug, a slow case, or something you'd design differently? Any of these work:</p>
+        <div class="contact">
+          <a class="btn primary" href="https://github.com/dharrsan-hq/qget/issues/new">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg>Open an issue on GitHub</a>
+          <a class="btn" href="mailto:dharrsan.work@gmail.com?subject=qget">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>dharrsan.work@gmail.com</a>
+          <a class="btn" href="https://www.linkedin.com/in/dharrsan-amarnath-75017221a" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>Message on LinkedIn</a>
+        </div>
+        <p style="margin:16px 0 0;font-size:14px">Contributing code, with or without an AI assistant? Start with <a href="https://github.com/dharrsan-hq/qget/blob/main/AGENTS.md">AGENTS.md</a> and <a href="https://github.com/dharrsan-hq/qget/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+      </div>
+      <div class="box me-card">
+        <div class="me-row">
+          <img class="photo" src="/author.jpg" alt="Dharrsan Amarnath" width="76" height="76">
+          <div><b>Dharrsan Amarnath</b><span>Infrastructure / SRE engineer · author of qget</span></div>
+        </div>
+        <p>Built qget after one too many 300 GB snapshot downloads that broke at 90%, and a few too many "just use <code class="i">curl | tar</code>" afternoons.</p>
+        <div class="btns">
+          <a class="btn" href="https://www.linkedin.com/in/dharrsan-amarnath-75017221a" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>LinkedIn</a>
+          <a class="btn" href="https://github.com/dharrsan-hq" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.7-2.8 5.7-5.5 6 .4.3.8 1 .8 2v3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>GitHub</a>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <span>qget v{{VERSION}} · Apache-2.0</span>
+    <span>qget v{{VERSION}} · quickly get · written in Rust · Apache-2.0</span>
     <span class="sp"></span>
     <a href="https://github.com/dharrsan-hq/qget">GitHub</a>
+    <a href="https://github.com/dharrsan-hq/qget/issues">Issues</a>
     <a href="https://github.com/dharrsan-hq/qget/releases">Releases</a>
-    <a href="https://github.com/dharrsan-hq/qget/blob/main/SECURITY.md">Security</a>
+    <a href="mailto:dharrsan.work@gmail.com">Email</a>
     <a href="https://www.linkedin.com/in/dharrsan-amarnath-75017221a" rel="noopener">LinkedIn</a>
   </div>
 </footer>

@@ -1,12 +1,19 @@
 # qget
 
-**Fast, verified, resumable downloads, with archives extracted while they download.**
+**Quickly get big files, over HTTP or peer-to-peer.** Written in Rust.
 
-qget fetches files over many adaptive HTTP range connections, survives
-crashes and `kill -9` without corrupting anything, verifies checksums while it
-downloads, and can unpack a huge `.tar.lz4` / `.tar.zst` snapshot straight to
-disk as it arrives, without ever storing the archive. With the `p2p` build it
-also sends files directly between machines over QUIC, verified byte-for-byte.
+> 🚧 **Under active development.** Feedback, criticism and contributions are welcome:
+> [open an issue](https://github.com/dharrsan-hq/qget/issues), email **dharrsan.work@gmail.com**,
+> or message on [LinkedIn](https://www.linkedin.com/in/dharrsan-amarnath-75017221a).
+> Website: **https://qget.dharrsan.com**
+
+qget (*quickly get*) is for the downloads that take hours: AI model weights (GGUF,
+safetensors), blockchain node snapshots, datasets and disk images. It fetches over many
+adaptive HTTP range connections, survives crashes and `kill -9` without corrupting anything,
+verifies checksums while it downloads, and can unpack a `.tar.lz4` / `.tar.zst` as it
+arrives, **so you don't need 2× the disk space**. It also sends files directly between machines
+over **QUIC** (via iroh, with NAT hole punching and relay fallback), verifying every MiB
+against a BLAKE3 root.
 
 ```sh
 # a file, resumable, verified
@@ -145,6 +152,9 @@ QGET_MAILBOX=mbox.example.com:7700 qget yeet ./dir   # → 4217-maple-orbit-cany
 Every 1 MiB is checked against the file's BLAKE3 root (the same value `b3sum`
 prints) before it is written, so peers and mirrors never need to be trusted.
 
+Peer-to-peer uses QUIC directly (through [iroh](https://www.iroh.computer)), not HTTP/3.
+Ordinary URL downloads use many parallel HTTP/1.1 connections (`--http2` optional).
+
 ## How it works
 
 - A deterministic scheduler in `qget-core` decides which byte ranges to
@@ -173,6 +183,11 @@ let report = qget::Download::new("https://example.com/snapshot.tar.lz4")
 ```
 
 The library API is experimental until 1.0.
+
+## Contributing
+
+Open to contributions and criticism. See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[AGENTS.md](AGENTS.md) (rules and commands, also read by AI coding assistants).
 
 ## License
 
