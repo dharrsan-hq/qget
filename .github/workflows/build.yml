@@ -44,13 +44,20 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.name }}
+          # Include the runner image: a target/ dir built on a newer glibc has
+          # build scripts that cannot run on an older one.
+          key: ${{ matrix.name }}-${{ matrix.os }}
       - name: Build
         shell: bash
         run: |
           target_flag=""
           [ -n "${{ matrix.target }}" ] && target_flag="--target ${{ matrix.target }}"
-          cargo build --release --locked -p qget-cli ${{ matrix.features }} $target_flag
+          if ! cargo build --release --locked -p qget-cli ${{ matrix.features }} $target_flag 2> build.log; then
+            grep -E "^(error|warning: build failed)|GLIBC|cannot find|failed to run custom build" -A3 build.log | head -40 \
+              | while IFS= read -r l; do echo "::error title=build::${l//%/%25}"; done
+            tail -50 build.log
+            exit 1
+          fi
           bin=target/${{ matrix.target }}/release/qget
           [ -f "$bin" ] || bin=target/release/qget
           mkdir -p out && cp "$bin" out/qget
