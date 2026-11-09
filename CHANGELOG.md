@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Dropped the macOS Intel (x86_64) build; macOS binaries are Apple Silicon only. `install.sh` explains how to build from source on Intel Macs.
+- New [docs/internals](docs/internals/README.md): how qget works, in order of events (protocols, the scheduler state machine, the journal format and crash behaviour, streaming extraction, P2P and its handshake), the reasoning behind each design choice, and how qget compares to other tools. CI checks the documents are updated with the code they describe.
 
 ## 0.3.0 — 2026-11-08 (see docs/release-notes/v0.3.0.md)
 

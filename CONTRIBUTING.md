@@ -5,8 +5,11 @@ are both welcome: open an [issue](https://github.com/dharrsan-hq/qget/issues), e
 **dharrsan.work@gmail.com**, or message on
 [LinkedIn](https://www.linkedin.com/in/dharrsan-amarnath-75017221a).
 
-The design is described in [PRD.md](PRD.md); please read §6 (design principles) and §9
-(architecture) before larger changes. [AGENTS.md](AGENTS.md) has the rules and commands in short
+How qget works is explained step by step in [docs/internals/](docs/internals/README.md);
+please read at least [Architecture](docs/internals/01-architecture.md) and
+[The life of a download](docs/internals/02-download-lifecycle.md) before larger changes. Changes
+to behaviour update the matching document in the same pull request (CI checks this; see
+"Keeping these documents true" in the index). The original requirements are in [PRD.md](PRD.md). [AGENTS.md](AGENTS.md) has the rules and commands in short
 form, and AI coding assistants pick it up automatically. AI-assisted pull requests are fine:
 say so in the description and make sure you understand every line.
 
@@ -36,6 +39,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets --features qget-cli/p2p -- -D warnings
 cargo test --workspace --features qget-cli/p2p
 scripts/check-deps.sh
+scripts/check-internals-docs.sh origin/main
 ```
 
 Scheduler changes should keep the simulation sweep green

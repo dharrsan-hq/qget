@@ -2,7 +2,9 @@
 
 Guidance for AI coding agents (and humans) working on **qget**, a Rust downloader
 for big files ("quickly get"): parallel HTTP, stream-extract, peer-to-peer over QUIC.
-Read this before changing code. Design background lives in [PRD.md](PRD.md).
+Read this before changing code. How it works, step by step and with the reasoning
+behind each choice, is in [docs/internals/](docs/internals/README.md); the original
+requirements and research are in [PRD.md](PRD.md).
 
 qget is **under active development**. Contributions and criticism are welcome, by
 [issue](https://github.com/dharrsan-hq/qget/issues), email (dharrsan.work@gmail.com)
@@ -32,7 +34,8 @@ bench/                  benchmark harness and results
 2. **The default build does not depend on iroh.** P2P is the `p2p` feature.
 3. **The CLI uses only the public `qget` API.** Don't reach into internal crates from `qget-cli`.
 4. **Never produce a wrong file silently.** Every completed output is byte-exact or a typed error.
-   Bytes are validated (Content-Range, byte counts, checksums, BLAKE3 groups) *before* they are written.
+   Bytes are validated (Content-Range, byte counts, BLAKE3 groups) *before* they are written, and
+   whole-file checksums are checked *before* the final rename or install.
 5. **Durability ordering**: `pwrite` → `fdatasync` → journal record → `fdatasync(journal)`.
    Renames are followed by an fsync of the parent directory.
 6. Library crates never print, never `process::exit`, and keep no global mutable state; use `tracing`.
@@ -45,8 +48,13 @@ cargo fmt --all
 cargo clippy --workspace --all-targets --features qget-cli/p2p -- -D warnings
 cargo test --workspace --features qget-cli/p2p
 scripts/check-deps.sh
+scripts/check-internals-docs.sh origin/main   # docs/internals updated with the code it explains
 ```
 
+- **Behaviour changes update [docs/internals/](docs/internals/README.md) in the same change.** Each
+  document lists the files it explains in a `covers:` comment, and CI fails when a covered file
+  changes without its document. Describe what the code does (numbers next to their constant names);
+  if the document is still correct, add the commit trailer `Internals-docs: unchanged`.
 - Scheduler/engine changes: `QGET_SIM_SEEDS=10000 cargo test --release -p qget-core seed_sweep`
   (nightly CI runs 100,000 seeds; a failing seed reproduces exactly).
 - Durability/resume changes: `QGET_CRASH_ROUNDS=50 cargo test -p qget-cli --test cli sigkill`.

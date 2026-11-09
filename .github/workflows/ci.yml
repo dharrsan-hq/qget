@@ -25,6 +25,19 @@ jobs:
       - run: cargo clippy --workspace --all-targets --features qget-cli/p2p
       - run: scripts/check-deps.sh
 
+  docs:
+    # docs/internals must change together with the code it explains.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Internals docs cover the code that changed
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: scripts/check-internals-docs.sh "$BASE" "$GITHUB_SHA"
+
   test:
     runs-on: ubuntu-latest
     steps:

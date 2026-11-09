@@ -180,7 +180,10 @@ Ordinary URL downloads use many parallel HTTP/1.1 connections (`--http2` optiona
   writes files from a worker pool into a staging directory that is renamed into
   place only after verification.
 
-The full design, requirements and research references are in [PRD.md](PRD.md).
+How it all works, step by step (the protocols, the scheduler's state machine,
+the journal format, crash behaviour, the P2P handshake) and why each design
+choice was made: [docs/internals](docs/internals/README.md). The original
+requirements and research references are in [PRD.md](PRD.md).
 
 ## Library
 
